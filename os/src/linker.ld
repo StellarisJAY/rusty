@@ -1,25 +1,26 @@
 OUTPUT_ARCH(riscv)
-// declare entry point section, _start section
+/* 声明入口section，此处为_start段 */
 ENTRY(_start)
-// declare our base address here
+/* 声明内存基址 */
 BASE_ADDRESS = 0x80200000;
 
 SECTIONS
 {
-    // starts from base address
+    /* 从内存基址开始分配 */
     . = BASE_ADDRESS;
-    // kernel space starts
+    /* kernel内存空间开始 */
     skernel = .;
     
-    // .text section starts
+    /* .text段开始，.text段保存程序代码 */
     stext = .;
+    /* text段包括了entry段和其他的所有text内容*/
     .text : {
         *(.text.entry)
         *(.text .text.*)
     }
 
     . = ALIGN(4K);
-    // .text section ends
+    /* .text段结束 */
     etext = .;
     srodata = .;
     .rodata : {
@@ -37,6 +38,7 @@ SECTIONS
 
     . = ALIGN(4K);
     edata = .;
+    /* bss段 */
     .bss : {
         *(.bss.stack)
         sbss = .;
@@ -45,7 +47,9 @@ SECTIONS
     }
 
     . = ALIGN(4K);
+    /* bss段结束 */
     ebss = .;
+    /* kernel内从空间结束 */
     ekernel = .;
 
     /DISCARD/ : {
