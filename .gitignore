@@ -1,2 +1,4 @@
 os/target
 os/Cargo.lock
+user/target
+user/Cargo.lock
