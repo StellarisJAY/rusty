@@ -18,7 +18,7 @@ SECTIONS
         *(.text.entry)
         *(.text .text.*)
     }
-
+    /* 在段的末尾进行内存对齐，保证段内存是4K整数倍*/
     . = ALIGN(4K);
     /* .text段结束 */
     etext = .;
@@ -38,7 +38,7 @@ SECTIONS
 
     . = ALIGN(4K);
     edata = .;
-    /* bss段 */
+    /* bss段 bss段包括可置零的未初始化的全局变量 */
     .bss : {
         *(.bss.stack)
         sbss = .;
