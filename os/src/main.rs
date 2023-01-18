@@ -15,7 +15,7 @@ global_asm!(include_str!("entry.asm"));
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    println!("\x1b[31mhello world\x1b[0m");
+    display_kernel_memory();
     sbi::shutdown();
 }
 
@@ -35,5 +35,24 @@ fn clear_bss() {
             }
             current += 1;
         }
+    }
+}
+
+// 打印.text .bss .data .rodata段的地址
+fn display_kernel_memory() {
+    extern "C" {
+        fn stext();
+        fn etext();
+        fn srodata();
+        fn erodata();
+        fn sdata();
+        fn edata();
+        fn sbss();
+        fn ebss();
+    } {
+        info!(".text section: [{:#x}, {:#x})", stext as usize, etext as usize);
+        info!(".rodata section: [{:#x}, {:#x})", srodata as usize, erodata as usize);
+        info!(".data section: [{:#x}, {:#x})", sdata as usize, edata as usize);
+        info!(".bss section: [{:#x}, {:#x})", sbss as usize, ebss as usize);
     }
 }
