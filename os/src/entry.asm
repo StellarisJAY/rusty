@@ -1,3 +1,4 @@
+init:
     .section .text.entry //声明.text.entry段，该段作为整个系统的入口
     .global _start
 _start:
@@ -6,7 +7,7 @@ _start:
     
     .section .bss.stack //bss.stack段开始
     .global boot_stack_lower_bound
-boot_stack_lower_bound:
+boot_stack_lower_bound: // 栈的开始地址
     .space 4096 * 16 //在bss stack段创建4096 * 16字节的空间，作为bss栈的空间
-    .global boot_stack_top
-boot_stack_top:
+    .global boot_stack_top // global 将标签全局化
+boot_stack_top: // 标记boot_stack_top，栈空间的结束地址
