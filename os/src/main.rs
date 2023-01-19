@@ -33,10 +33,9 @@ pub fn rust_main() {
     display_linked_apps();
     // 初始化陷入
     unsafe {trap::init();}
-    info!("trap init finished");
-    run_apps();
+    batch::run_next_app();
     // 通过SBI陷入机器层，完成关机操作
-    sbi::shutdown();
+//    sbi::shutdown();
 }
 
 // 清空bss段
@@ -85,24 +84,14 @@ fn display_kernel_memory() {
     }
 }
 use crate::batch::APP_MANAGER;
-use crate::batch::run_app;
 fn display_linked_apps() {
     let app_manager = APP_MANAGER.exclusive_borrow();
     let num_apps = app_manager.get_num_apps();
     info!("linked app count: {}", app_manager.get_num_apps());
     for i in 0..num_apps {
-        info!("app[{}], kernel space addr: {:#x}, size: {} B", i,
+        info!("app[{}], kernel space addr: {:#x}, size: {} KiB", i,
         app_manager.get_app_addr(i),
-        app_manager.get_app_addr(i + 1) - app_manager.get_app_addr(i));
+        (app_manager.get_app_addr(i + 1) - app_manager.get_app_addr(i)) / 1024);
     }
     drop(app_manager);
-}
-
-fn run_apps() {
-    run_app(0);
-}
-
-
-fn _exit(exit_code: i32) {
-    syscall::_sys_exit(exit_code);
 }
