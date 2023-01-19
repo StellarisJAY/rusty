@@ -26,6 +26,7 @@ pub fn trap_handler(ctx: &mut TrapContext) -> &mut TrapContext {
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
+        // 捕获到U传给S的ecall，转到syscall处理，在syscall模块对不合法的syscall过滤
         Trap::Exception(Exception::UserEnvCall) => {
             // trap结束后的指令为trap指令之后的一条指令
             // 每条指令大小为4字节，所以sepc寄存器 + 4
@@ -38,6 +39,10 @@ pub fn trap_handler(ctx: &mut TrapContext) -> &mut TrapContext {
             error!("[kernel] Page fault, kernel kills application");
             run_next_app();
         },
+        Trap::Exception(Exception::InstructionFault) => {
+            error!("[kernel] Instruction Fault: {:#x}", stval);
+            run_next_app();
+        }
         Trap::Exception(Exception::IllegalInstruction) => {
             error!("[kernel] Illegal instruction, kernel kills application");
             run_next_app();
