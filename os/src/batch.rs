@@ -121,16 +121,3 @@ pub fn run_next_app() -> ! {
     unsafe {__restore(KERNEL_STACK.push_context(context) as *const _ as usize);}
     panic!("unreacheable after run app");
 }
-
-pub fn run_app(app_id: usize) -> ! {
-    let app_manager = APP_MANAGER.exclusive_borrow();
-    unsafe {app_manager.load_app(app_id);}
-    drop(app_manager);
-    extern "C" {
-        fn __restore(ctx_addr: usize);
-    }
-    let context = TrapContext::init_context(APP_BASE_ADDRESS, USER_STACK.get_sp());
-    debug!("user stack sp: {:#x}, sepc: {:#x}, sstatus: {:?}", USER_STACK.get_sp(), context.sepc, context.sstatus);
-    unsafe {__restore(KERNEL_STACK.push_context(context) as *const _ as usize);}
-    panic!("unreacheable after run app");
-}

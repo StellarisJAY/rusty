@@ -24,10 +24,11 @@ global_asm!(include_str!("link_app.S"));
 // entry.asm中完成启动后，通过call rust_main命令跳转到该函数中
 #[no_mangle]
 pub fn rust_main() {
+    kernel_info!("bootloader done");
     // 清空bss段
-    info!("clear .bss section...");
     clear_bss();
-    println!("\x1b[32m[Kernel] started\x1b[0m");
+    kernel_info!(".bss section cleared");
+    kernel_info!("System started");
     info!("display memory layout: ");
     display_kernel_memory();
     display_linked_apps();

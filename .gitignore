@@ -1,4 +1,4 @@
 os/target
 os/Cargo.lock
-user/target
-user/Cargo.lock
+user_lib/target
+user_lib/Cargo.lock

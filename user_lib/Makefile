@@ -1,9 +1,3 @@
-run:
-	@qemu-system-riscv64 \
-	-machine virt \
-	-nographic \
-	-bios ../bootloader/rustsbi-qemu.bin \
-	-device loader,file=target/riscv64gc-unknown-none-elf/release/00hello_world.bin,addr=0x80400000
 build:
 	@cargo build --release
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/00hello_world -O binary target/riscv64gc-unknown-none-elf/release/00hello_world.bin
@@ -11,13 +5,6 @@ build:
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/02power -O binary target/riscv64gc-unknown-none-elf/release/02power.bin
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/03priv_inst -O binary target/riscv64gc-unknown-none-elf/release/03priv_inst.bin
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/04priv_csr -O binary target/riscv64gc-unknown-none-elf/release/04priv_csr.bin
-debug:build
-	@qemu-system-riscv64 \
-        -machine virt \
-        -nographic \
-        -bios ../bootloader/rustsbi-qemu.bin \
-        -device loader,file=target/riscv64gc-unknown-none-elf/release/user.bin,addr=0x80200000 -s -S
-
 env:
 	@rustup install nightly
 	@rustup default nightly
@@ -25,5 +12,3 @@ env:
 	@cargo install cargo-binutils
 	@rustup component add llvm-tools-preview
 	@rustup component add rust-src
-run00:build
-	@qemu-riscv64 target/riscv64gc-unknown-none-elf/release

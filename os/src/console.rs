@@ -68,3 +68,12 @@ macro_rules! debug {
         $crate::console::print_str("\x1b[0m\n");
     }
 }
+
+#[macro_export]
+macro_rules! kernel_info {
+    ($fmt: literal $(, $($arg: tt)+)?)=>{
+        $crate::console::print_str("\x1b[32m[kernel] [INFO] ");
+        $crate::console::print(format_args!($fmt $(, $($arg)+)?));
+        $crate::console::print_str("\x1b[0m\n");
+    }
+}

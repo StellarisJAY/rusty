@@ -2,7 +2,7 @@
 #![no_main]
 
 #[macro_use]
-extern crate user;
+extern crate lib_rusty;
 
 const SIZE: usize = 10;
 const P: u32 = 3;

@@ -2,7 +2,7 @@
 #![no_main]
 
 #[macro_use]
-extern crate user;
+extern crate lib_rusty;
 
 use core::arch::asm;
 
