@@ -1,9 +1,8 @@
 use core::panic::PanicInfo;
-use crate::sbi;
 use crate::println;
-
+use crate::sys_exit;
 #[panic_handler]
-fn panic(info: &PanicInfo) -> !{
+fn panic(info: &PanicInfo)->!{
     if let Some(location) = info.location() {
         println!(
             "Panicked at {}:{} {}",
@@ -14,5 +13,6 @@ fn panic(info: &PanicInfo) -> !{
     } else {
         println!("Panicked: {}", info.message().unwrap());
     }
-    sbi::shutdown();
+    sys_exit(0);
+    panic!("not reachable")
 }

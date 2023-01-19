@@ -1,12 +1,14 @@
 use core::fmt::{self, Write};
-use crate::syscall;
-
+use crate::sys_write;
 const STDOUT:usize = 1;
 struct Stdout;
 // implement Write trait for Stdout
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        syscall::sys_write(STDOUT, s.as_bytes());
+        // 用户层的不能直接通过SBI打印
+        // 必须通过ecall到内核层
+        // 内核层再根据syscall_id决定是否ecall机器层
+        sys_write(STDOUT, s.as_bytes());
         return Ok(());
     }
 }

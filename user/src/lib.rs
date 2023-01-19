@@ -6,19 +6,15 @@ mod syscall;
 #[macro_use]
 pub mod console;
 pub mod lang_items;
-pub mod sbi;
 
 // 将该函数link到.text.entry，即kernel内存的开始位置
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> !{
+pub extern "C" fn _start(){
     // 清空bss
     clear_bss();
-    info!("system started");
     // 执行main，并用main返回的exit_code退出
     exit(main());
-    exit(0);
-    panic!("unreachable after sys_exit!");
 }
 
 // 弱链接，如果存在多个相同名称的函数，弱链接的会被覆盖
