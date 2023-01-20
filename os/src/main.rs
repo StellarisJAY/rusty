@@ -8,9 +8,11 @@ mod sbi;
 mod console;
 mod syscall;
 
-mod batch;
 mod sync;
 mod trap;
+mod loader;
+mod config;
+mod task;
 
 use core::arch::global_asm;
 // 让编译器将该汇编代码文件作为编入全局代码
@@ -31,10 +33,10 @@ pub fn rust_main() {
     kernel_info!("System started");
     info!("display memory layout: ");
     display_kernel_memory();
-    display_linked_apps();
+    unsafe {loader::load_apps();}
     // 初始化陷入
     unsafe {trap::init();}
-    batch::run_next_app();
+    task::run_next_app();
     // 通过SBI陷入机器层，完成关机操作
 //    sbi::shutdown();
 }
@@ -79,20 +81,6 @@ fn display_kernel_memory() {
         boot_stack_lower_bound as usize,
         boot_stack_top as usize,
         (boot_stack_top as usize - boot_stack_lower_bound as usize) / 1024);
-
         info!(".bss section: [{:#x}, {:#x})", sbss as usize, ebss as usize);
-
     }
-}
-use crate::batch::APP_MANAGER;
-fn display_linked_apps() {
-    let app_manager = APP_MANAGER.exclusive_borrow();
-    let num_apps = app_manager.get_num_apps();
-    info!("linked app count: {}", app_manager.get_num_apps());
-    for i in 0..num_apps {
-        info!("app[{}], kernel space addr: {:#x}, size: {} KiB", i,
-        app_manager.get_app_addr(i),
-        (app_manager.get_app_addr(i + 1) - app_manager.get_app_addr(i)) / 1024);
-    }
-    drop(app_manager);
 }

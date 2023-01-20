@@ -4,7 +4,7 @@ use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::Exception;
 use crate::syscall::syscall;
-use crate::batch::run_next_app;
+use crate::task::run_next_app;
 // 导入Trap上下文切换的汇编
 global_asm!(include_str!("trap.S"));
 
