@@ -8,3 +8,5 @@ pub const MAX_APP_COUNT: usize = 1024;
 // 用户栈和内核栈分别为8KiB
 pub const USER_STACK_SIZE: usize = 8 * 1024;
 pub const KERNEL_STACK_SIZE: usize = 8 * 1024;
+
+pub const MAX_TASK_COUNT: usize = 10;
