@@ -46,7 +46,6 @@ __restore:
     # case2: back to U after handling trap
     # 恢复的两种情况：
     # 启动App 或者 从S回到U
-    mv sp, a0
     # 此时的sp是压入context后的内核栈顶
     # 恢复sstatus和sepc，两者分别保存在：sp + 8 * 32 和 sp + 8 * 33
     ld t0, 32*8(sp)

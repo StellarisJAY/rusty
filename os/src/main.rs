@@ -36,9 +36,7 @@ pub fn rust_main() {
     unsafe {loader::load_apps();}
     // 初始化陷入
     unsafe {trap::init();}
-    task::run_next_app();
-    // 通过SBI陷入机器层，完成关机操作
-//    sbi::shutdown();
+    task::run_first_task();
 }
 
 // 清空bss段
