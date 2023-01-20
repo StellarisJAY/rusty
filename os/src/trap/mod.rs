@@ -4,7 +4,7 @@ use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::Exception;
 use crate::syscall::syscall;
-use crate::task::run_next_app;
+use crate::task::{run_next_task, exit_current_task};
 // 导入Trap上下文切换的汇编
 global_asm!(include_str!("trap.S"));
 
@@ -37,15 +37,18 @@ pub fn trap_handler(ctx: &mut TrapContext) -> &mut TrapContext {
         },
         Trap::Exception(Exception::StoreFault | Exception::StorePageFault) => {
             error!("[kernel] Page fault, kernel kills application");
-            run_next_app();
+            exit_current_task();
+            run_next_task();
         },
         Trap::Exception(Exception::InstructionFault) => {
             error!("[kernel] Instruction Fault: {:#x}", stval);
-            run_next_app();
+            exit_current_task();
+            run_next_task();
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             error!("[kernel] Illegal instruction, kernel kills application");
-            run_next_app();
+            exit_current_task();
+            run_next_task();
         }
         _ => {
             panic!("unsupported trap, cause: {:?}, stval: {:#x}", scause.cause(), stval);
