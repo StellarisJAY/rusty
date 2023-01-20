@@ -10,3 +10,6 @@ pub const USER_STACK_SIZE: usize = 8 * 1024;
 pub const KERNEL_STACK_SIZE: usize = 8 * 1024;
 
 pub const MAX_TASK_COUNT: usize = 10;
+
+// 时钟周期
+pub const TIME_FREQUENCY: usize = 12500000;

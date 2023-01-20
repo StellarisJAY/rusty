@@ -1,4 +1,6 @@
 #![allow(unused)]
+
+
 // 声明RustSBI
 // 通过SBI调用RISC-V的基本服务
 const SBI_SET_TIMER: usize = 0;
@@ -41,4 +43,10 @@ pub fn shutdown() -> ! {
 
 pub fn sleep(duration: u64) {
 
+}
+
+
+
+pub fn set_timer(timer: usize){
+    call_sbi(SBI_SET_TIMER, timer, 0, 0);
 }
