@@ -1,5 +1,5 @@
 const FD_STDOUT: usize = 1;
-use crate::task::run_next_app;
+
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
         FD_STDOUT => {
@@ -14,9 +14,3 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     }
 }
 
-// os/src/syscall/process.rs
-
-pub fn sys_exit(xstate: i32) -> ! {
-    println!("[kernel] Application exited with code {}", xstate);
-    run_next_app()
-}
