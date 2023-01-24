@@ -129,12 +129,21 @@ impl TaskManager {
         if let Some(next_id) = self.find_next_task() {
             let mut manager = self.instance.exclusive_borrow();
             let current_task = manager.current_task;
+            let cur_ctx_ptr: *mut TaskContext;
             manager.task_control_blocks[next_id].status = TaskStatus::Running;
             manager.current_task = next_id;
             // 获取ctx的地址
-            let cur_ctx_ptr = &mut manager.task_control_blocks[current_task].ctx as *mut TaskContext;
+            // 时间片结束的切换可能因为只剩下当前任务，所以并没有切换任务
+            // 需要创建一个空白的context来作为当前context
+            if next_id == current_task {
+                let mut empty_ctx = TaskContext::new_empty_ctx();
+                cur_ctx_ptr = &mut empty_ctx as *mut TaskContext;
+            }else {
+                cur_ctx_ptr = &mut manager.task_control_blocks[current_task].ctx as *mut TaskContext;
+            }
             let next_ctx_ptr = & manager.task_control_blocks[next_id].ctx as *const TaskContext;
             drop(manager);
+            debug!("running next task, app_{}", next_id);
             // switch会将下一个任务的sp、ra恢复，并通过restore回到U状态
             unsafe {
                 __switch(cur_ctx_ptr, next_ctx_ptr);
