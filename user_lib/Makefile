@@ -5,6 +5,10 @@ build:
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/02power -O binary target/riscv64gc-unknown-none-elf/release/02power.bin
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/03priv_inst -O binary target/riscv64gc-unknown-none-elf/release/03priv_inst.bin
 	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/04priv_csr -O binary target/riscv64gc-unknown-none-elf/release/04priv_csr.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/05power_3 -O binary target/riscv64gc-unknown-none-elf/release/05power_3.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/06power_5 -O binary target/riscv64gc-unknown-none-elf/release/06power_5.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/07power_7 -O binary target/riscv64gc-unknown-none-elf/release/07power_7.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/08sleep -O binary target/riscv64gc-unknown-none-elf/release/08sleep.bin
 env:
 	@rustup install nightly
 	@rustup default nightly
