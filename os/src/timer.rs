@@ -10,3 +10,7 @@ pub fn get_time() -> usize {
 pub fn set_next_time_trigger() {
     set_timer(get_time() + TIME_FREQUENCY / TICK_PER_SECOND);
 }
+
+pub fn get_time_ms() -> usize {
+    time::read() / (TIME_FREQUENCY / TIME_FREQUENCY)
+}

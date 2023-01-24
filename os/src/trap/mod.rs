@@ -1,5 +1,5 @@
 use core::arch::global_asm;
-use riscv::register::{stvec, scause, stval};
+use riscv::register::{stvec, scause, stval, sie};
 use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::{Exception, Interrupt};
@@ -18,6 +18,12 @@ pub unsafe fn init() {
     // 将all_trap汇编的地址写入stvec寄存器，即Trap处理入口寄存器
     // 之后发生trap后会从stvec寄存器找到trap处理逻辑
     stvec::write(__alltraps as usize, TrapMode::Direct);
+}
+
+pub fn enable_stimer() {
+    unsafe {
+        sie::set_stimer();
+    }
 }
 
 use context::TrapContext;

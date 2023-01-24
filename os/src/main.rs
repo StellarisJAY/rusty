@@ -13,6 +13,7 @@ mod trap;
 mod loader;
 mod config;
 mod task;
+mod timer;
 
 use core::arch::global_asm;
 // 让编译器将该汇编代码文件作为编入全局代码
@@ -21,7 +22,7 @@ use core::arch::global_asm;
 // 因此，entry.asm中的内容将负责完成系统的启动
 global_asm!(include_str!("entry.asm"));
 // 载入app程序代码
-global_asm!(include_str!("link_app.S"));
+global_asm!(include_str!("link_app_ch3.S"));
 
 // entry.asm中完成启动后，通过call rust_main命令跳转到该函数中
 #[no_mangle]
@@ -36,6 +37,8 @@ pub fn rust_main() {
     unsafe {loader::load_apps();}
     // 初始化陷入
     unsafe {trap::init();}
+    trap::enable_stimer();
+    timer::set_next_time_trigger();
     task::run_first_task();
 }
 
