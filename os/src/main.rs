@@ -1,7 +1,10 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
-
+#![feature(alloc_error_handler)]
+extern crate alloc;
+#[macro_use]
+extern crate bitflags;
 mod lang_items;
 mod sbi;
 #[macro_use]
@@ -14,6 +17,7 @@ mod loader;
 mod config;
 mod task;
 mod timer;
+mod mem;
 
 use core::arch::global_asm;
 // 让编译器将该汇编代码文件作为编入全局代码
@@ -34,6 +38,9 @@ pub fn rust_main() {
     kernel_info!("System started");
     info!("display memory layout: ");
     display_kernel_memory();
+    mem::heap_allocator::init_heap();
+    mem::frame_allocator::init_frame_allocator();
+    mem::frame_allocator::frame_allocator_test();
     unsafe {loader::load_apps();}
     // 初始化陷入
     unsafe {trap::init();}
