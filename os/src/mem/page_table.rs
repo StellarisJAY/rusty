@@ -17,6 +17,10 @@ bitflags! {
 // 0011 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1100 0000 0000
 const ENTRY_PPN_MASK: usize = 0x3ffffffffffc00;
 
+// PageEntry，一个页表项大小为8字节
+// 页表基地址位PT_BASE_ADDR，每个虚拟页号 i 对应的页表项地址：PT_BASE_ADDR + 8*i
+// 多级页表的页表项中的PPN表示下一级页表的虚拟页号
+// 最后一级页表的PPN为物理页号，物理页地址 = PPN * 4KiB + BASE_ADDR
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct PageEntry {
