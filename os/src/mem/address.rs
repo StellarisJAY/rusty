@@ -18,10 +18,13 @@ pub struct VirtAddr(pub usize);
 pub struct VirtPageNumber(pub usize);
 
 impl PhysAddr {
+    // 获取物理地址中的页内偏移
     pub fn page_offset(&self) -> usize {
         self.0 & PAGE_OFFSET_MASK
     }
+    // 物理地址向下取整获得物理页号
     pub fn floor(&self) -> PhysPageNumber { PhysPageNumber(self.0 / PAGE_SIZE) }
+    // 物理地址向上取整获得物理页号
     pub fn ceil(&self) -> PhysPageNumber { PhysPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
@@ -31,6 +34,15 @@ impl VirtAddr {
     }
     pub fn floor(&self) -> VirtPageNumber { VirtPageNumber(self.0 / PAGE_SIZE) }
     pub fn ceil(&self) -> VirtPageNumber { VirtPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
+}
+
+
+impl PhysPageNumber {
+    // 将一个物理页作为mutable切片返回
+    pub fn as_bytes_array(&self) -> &mut [u8] {
+        let start_ptr = ((self.0 * PAGE_SIZE) as usize)  as *mut u8;
+        unsafe {core::slice::from_raw_parts_mut(start_ptr, PAGE_SIZE)}
+    }
 }
 
 impl From<usize> for PhysAddr {
