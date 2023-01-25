@@ -19,3 +19,5 @@ pub const KERNEL_HEAP_SIZE: usize = 1024 * 1024 * 10;
 pub const PAGE_SIZE_BITS: usize = 12;
 pub const PAGE_SIZE: usize = 4096;
 pub const PAGE_OFFSET_MASK: usize = 0xfff;
+
+pub const MEMORY_END: usize = 0x82000000;
