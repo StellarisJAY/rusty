@@ -33,6 +33,10 @@ impl VirtAddr {
     pub fn page_offset(&self) -> usize {
         self.0 & PAGE_OFFSET_MASK
     }
+    // 物理地址向下取整获得物理页号
+    pub fn floor(&self) -> VirtPageNumber { VirtPageNumber(self.0 / PAGE_SIZE) }
+    // 物理地址向上取整获得物理页号
+    pub fn ceil(&self) -> VirtPageNumber { VirtPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
 }
 
 

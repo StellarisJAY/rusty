@@ -110,13 +110,13 @@ impl PageTable {
     }
 
     /// Temporarily used to get arguments from user space.
-    pub fn from_token(satp: usize) -> Self {
+    pub fn from_satp_register(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNumber(satp & ((1usize << 44) - 1)),
             frames: Vec::new(),
         }
     }
-    pub fn translate(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
+    pub fn vpn_to_ppn(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
         self.find_pte(vpn)
             .map(|pte| {pte.clone()})
     }
