@@ -24,9 +24,9 @@ use core::arch::global_asm;
 // 因为此时是rust main.rs文件的第一行代码
 // 所以在编译完成后，该汇编文件的内容将作为所有代码的第一行
 // 因此，entry.asm中的内容将负责完成系统的启动
-global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("asm/entry.asm"));
 // 载入app程序代码
-global_asm!(include_str!("link_app_ch3.S"));
+global_asm!(include_str!("asm/link_app_ch3.S"));
 
 // entry.asm中完成启动后，通过call rust_main命令跳转到该函数中
 #[no_mangle]
@@ -34,10 +34,6 @@ pub fn rust_main() {
     kernel_info!("bootloader done");
     // 清空bss段
     clear_bss();
-    kernel_info!(".bss section cleared");
-    kernel_info!("System started");
-    info!("display memory layout: ");
-    display_kernel_memory();
     mem::heap_allocator::init_heap();
     mem::frame_allocator::init_frame_allocator();
     mem::frame_allocator::frame_allocator_test();
@@ -65,30 +61,5 @@ fn clear_bss() {
             }
             current += 1;
         }
-    }
-}
-
-// 打印.text .bss .data .rodata段的地址
-fn display_kernel_memory() {
-    extern "C" {
-        fn stext();
-        fn etext();
-        fn srodata();
-        fn erodata();
-        fn sdata();
-        fn edata();
-        fn sbss();
-        fn ebss();
-        fn boot_stack_lower_bound();
-        fn boot_stack_top();
-    } {
-        info!(".text section: [{:#x}, {:#x})", stext as usize, etext as usize);
-        info!(".rodata section: [{:#x}, {:#x})", srodata as usize, erodata as usize);
-        info!(".data section: [{:#x}, {:#x})", sdata as usize, edata as usize);
-        info!("boot stack: [{:#x}, {:#x}), stack size: {}KiB",
-        boot_stack_lower_bound as usize,
-        boot_stack_top as usize,
-        (boot_stack_top as usize - boot_stack_lower_bound as usize) / 1024);
-        info!(".bss section: [{:#x}, {:#x})", sbss as usize, ebss as usize);
     }
 }

@@ -41,12 +41,6 @@ pub fn shutdown() -> ! {
     panic!("system shutdown");
 }
 
-pub fn sleep(duration: u64) {
-
-}
-
-
-
 pub fn set_timer(timer: usize){
     call_sbi(SBI_SET_TIMER, timer, 0, 0);
 }

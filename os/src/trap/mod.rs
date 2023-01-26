@@ -7,7 +7,7 @@ use crate::syscall::syscall;
 use crate::task::{run_next_task, exit_current_task, suspend_current_task};
 use crate::timer;
 // 导入Trap上下文切换的汇编
-global_asm!(include_str!("trap.S"));
+global_asm!(include_str!("../asm/trap.S"));
 
 pub mod context;
 

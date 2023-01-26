@@ -8,7 +8,7 @@ use crate::trap::context::TrapContext;
 
 mod context;
 
-global_asm!(include_str!("switch.S"));
+global_asm!(include_str!("../asm/switch.S"));
 
 extern "C" {
     pub fn __switch(current_ctx: *mut TaskContext, next_ctx: *const TaskContext);
@@ -56,7 +56,7 @@ lazy_static! {
             // trap的sepc设置为app的入口地址，使restore程序能够跳转到app代码
             let trap_ctx = TrapContext::init_context(get_base_addr(app_id), USER_STACK[app_id].get_sp());
             // 创建一个ra指向__restore的任务上下文，当切换到该任务时，通过restore切换回U状态，执行任务
-            tasks[app_id].ctx = TaskContext::restore_ctx(KERNEL_STACK[app_id].push_context(trap_ctx) as *const _ as usize);
+            tasks[app_id].ctx = TaskContext::trap_restore_context(KERNEL_STACK[app_id].push_context(trap_ctx) as *const _ as usize);
         }
         let instance = unsafe {
             UPSafeCell::new(TaskManagerInstance{
