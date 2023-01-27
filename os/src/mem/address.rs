@@ -50,7 +50,12 @@ impl PhysPageNumber {
     // 一个物理页（4KiB）可以容纳 512个页表项（8 字节）
     pub fn as_pte_array(&self) -> &'static mut [PageTableEntry] {
         let ptr = ((self.0 * PAGE_SIZE) as usize)  as *mut PageTableEntry;
-        unsafe{core::slice::from_raw_parts_mut(ptr, PAGE_SIZE / 8)}
+        let array = unsafe{core::slice::from_raw_parts_mut(ptr, PAGE_SIZE / 8)};
+        return array;
+    }
+
+    pub fn get_base_address(&self) -> usize {
+        self.0 * PAGE_SIZE
     }
 }
 
@@ -66,59 +71,6 @@ impl VirtPageNumber {
             vpn = vpn >> 9;
         }
         return idxs;
-    }
-}
-
-impl From<usize> for PhysAddr {
-    fn from(value: usize) -> Self {
-        Self(value & (1<<RISCV_PA_WIDTH - 1))
-    }
-}
-impl From<usize> for PhysPageNumber {
-    fn from(value: usize) -> Self {
-        Self(value & (1<<RISCV_PPN_WIDTH - 1))
-    }
-}
-impl From<PhysAddr> for usize {
-    fn from(value: PhysAddr) -> usize {
-        value.0
-    }
-}
-impl From<PhysPageNumber> for usize {
-    fn from(value: PhysPageNumber) -> Self {
-        value.0
-    }
-}
-
-impl From<usize> for VirtAddr {
-    fn from(value: usize) -> Self {
-        Self(value & (1 << RISCV_VA_WIDTH - 1))
-    }
-}
-
-impl From<usize> for VirtPageNumber {
-    fn from(value: usize) -> Self {
-        Self(value & (1<<RISCV_VPN_WIDTH - 1))
-    }
-}
-
-impl From<VirtAddr> for usize {
-    fn from(value: VirtAddr) -> usize {
-        value.0
-    }
-}
-
-impl From<VirtPageNumber> for usize {
-    fn from(value: VirtPageNumber) -> usize {
-        value.0
-    }
-}
-
-
-impl From<PhysAddr> for PhysPageNumber {
-    fn from(v: PhysAddr) -> Self {
-        assert_eq!(v.page_offset(), 0);
-        v.floor()
     }
 }
 

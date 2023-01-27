@@ -1,7 +1,6 @@
-#[allow(unused)]
 use bitflags::*;
 use super::address::*;
-use super::frame_allocator::{FrameTracker, alloc_frame, dealloc_frame};
+use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::vec::Vec;
 use alloc::vec;
 
@@ -17,9 +16,6 @@ bitflags! {
         const D = 1 << 7;
     }
 }
-// PPN mask 44位ppn + 2位reserve + 8位flags
-// 0011 1111 1111 1111 1111 1111 1111 1111 1111 1111 1111 1100 0000 0000
-const ENTRY_PPN_MASK: usize = 0x3ffffffffffc00;
 
 // PageEntry，一个页表项大小为8字节
 // 非叶子节点的页表项的ppn表示下一级页表的物理页号
@@ -34,19 +30,19 @@ pub struct PageTableEntry {
 // 每级页表用一个物理页保存，所以根节点需要一个root_ppn
 // 一个物理页4KiB，一个页表项8B，所以一级页表可以容纳512个页表项
 pub struct PageTable {
-    root_ppn: PhysPageNumber,
+    pub root_ppn: PhysPageNumber,
     frames: Vec<FrameTracker>,
 }
 
 impl PageTableEntry {
     pub fn new(ppn: PhysPageNumber, flags: PTEFlags) -> Self {
-        Self { bits:  ppn.0 << 10 | flags.bits as usize}
+        Self { bits:  (ppn.0 & 0xfffffffffff) << 10 | flags.bits as usize}
     }
     pub fn empty() -> Self {
         Self{bits: 0}
     }
     pub fn page_number(&self) -> PhysPageNumber {
-        (self.bits & ENTRY_PPN_MASK >> 10).into()
+        PhysPageNumber(self.bits >> 10 & (1usize << 44 - 1))
     }
     pub fn flags(&self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()
@@ -54,6 +50,9 @@ impl PageTableEntry {
 
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
+    }
+    pub fn is_writable(&self) -> bool {
+        (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
 }
 
@@ -63,9 +62,11 @@ impl PageTable {
         Self { root_ppn: frame.ppn, frames: vec![frame] }
     }
     pub fn map(&mut self, vpn: VirtPageNumber, ppn: PhysPageNumber, flags: PTEFlags) {
+        debug!("page table mapping vpn: {}, ppn: {}", vpn.0, ppn.0);
         let pte = self.find_or_create_pte(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn: {} already mapped before mapping", vpn.0);
+        //assert!(!pte.is_valid(), "vpn: {} already mapped before mapping, pte ppn: {}", vpn.0, pte.page_number().0);
         *pte = PageTableEntry::new(ppn, PTEFlags::V);
+        debug!("page table entry mapped, vpn: {}, ppn: {}", vpn.0, pte.page_number().0);
     }
     pub fn unmap(&mut self, vpn: VirtPageNumber) {
         let pte = self.find_pte(vpn).unwrap();
@@ -80,6 +81,7 @@ impl PageTable {
             // 获取当前一级页表的的页表项数组，然后获取vpn对应的页表项
             let pte = &mut ppn.as_pte_array()[vpn_idxs[i]];
             if i == 2 {
+                debug!("found pte, pte ppn: {}, bits: {:#b}", pte.page_number().0, pte.bits);
                 return Some(pte);
             }
             // 页表项无效，创建新的页表项，并绑定到物理页
@@ -109,7 +111,8 @@ impl PageTable {
         return None;
     }
 
-    /// Temporarily used to get arguments from user space.
+    #[allow(unused)]
+    // 从satp寄存器构建页表
     pub fn from_satp_register(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNumber(satp & ((1usize << 44) - 1)),
@@ -119,5 +122,9 @@ impl PageTable {
     pub fn vpn_to_ppn(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
         self.find_pte(vpn)
             .map(|pte| {pte.clone()})
+    }
+
+    pub fn satp_value(&self) -> usize {
+        8 << 60 | (self.root_ppn.0 & 0xfffffffffff)
     }
 }

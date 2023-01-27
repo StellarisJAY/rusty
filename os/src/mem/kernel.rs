@@ -1,6 +1,9 @@
-use super::memory_set::{MemorySet, MapArea, MapType, MapPermission};
+use super::memory_set::{MemorySet, MemoryArea, MapType, MapPermission};
 use super::address::{VirtAddr};
 use crate::config::MEMORY_END;
+use lazy_static::lazy_static;
+use crate::sync::UPSafeCell;
+use alloc::sync::Arc;
 
 extern "C" {
     fn stext();
@@ -14,6 +17,10 @@ extern "C" {
     fn boot_stack_lower_bound();
     fn boot_stack_top();
     fn ekernel();
+}
+
+lazy_static! {
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> = unsafe {Arc::new(UPSafeCell::new(MemorySet::new_kernel_space()))};
 }
 
 #[allow(unused)]
@@ -33,27 +40,59 @@ impl MemorySet {
     pub fn new_kernel_space() -> Self{
         let mut memory_set = MemorySet::new_empty();
         display_kernel_memory_layout();
-        memory_set.push(MapArea::new(
+        memory_set.push(MemoryArea::new(
                 VirtAddr(stext as usize),
                 VirtAddr(etext as usize),
                 MapType::Direct,MapPermission::R | MapPermission::X), None);
-        memory_set.push(MapArea::new(
+        kernel_info!(".text memory area created");
+        memory_set.push(MemoryArea::new(
                 VirtAddr(srodata as usize),
                 VirtAddr(erodata as usize),
                 MapType::Direct, MapPermission::R), None);
-        memory_set.push(MapArea::new(
+        kernel_info!(".rodata memory area created");
+        memory_set.push(MemoryArea::new(
                 VirtAddr(sdata as usize),
                 VirtAddr(edata as usize),
                 MapType::Direct, MapPermission::R | MapPermission::W), None);
-        memory_set.push(MapArea::new(
+        kernel_info!(".data memory area created");
+        memory_set.push(MemoryArea::new(
                 VirtAddr(sbss as usize),
                 VirtAddr(ebss as usize),
                 MapType::Direct, MapPermission::R | MapPermission::W), None);
+        kernel_info!(".bss memory area created");
 
-        memory_set.push(MapArea::new(
+        memory_set.push(MemoryArea::new(
                 VirtAddr(ekernel as usize),
                 VirtAddr(MEMORY_END),
                 MapType::Direct, MapPermission::R | MapPermission::W ), None);
+        kernel_info!("physical memory area created");
         return memory_set;
     }
+}
+
+
+#[allow(unused)]
+pub fn remap_test() {
+    println!("borrowd");
+    let mut kernel_space = KERNEL_SPACE.exclusive_borrow();
+    let mid_text: VirtAddr = VirtAddr((stext as usize + etext as usize) / 2);
+    let mid_rodata: VirtAddr = VirtAddr((srodata as usize + erodata as usize) / 2);
+    let mid_data: VirtAddr = VirtAddr((sdata as usize + edata as usize) / 2);
+    println!("1");
+    assert_eq!(
+            kernel_space.page_table.vpn_to_ppn(mid_text.floor()).unwrap().is_writable(),
+        false
+    );
+    println!("2");
+    assert_eq!(
+            kernel_space.page_table.vpn_to_ppn(mid_rodata.floor()).unwrap().is_writable(),
+        false,
+    );
+    println!("3");
+    assert_eq!(
+            kernel_space.page_table.vpn_to_ppn(mid_data.floor()).unwrap().is_writable(),
+        false,
+    );
+    println!("remap_test passed!");
+    drop(kernel_space);
 }

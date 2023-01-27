@@ -5,15 +5,16 @@ use alloc::collections::BTreeMap;
 use bitflags::bitflags;
 use super::page_table::{PageTable, PTEFlags};
 use alloc::vec::Vec;
-
+use riscv::register::satp;
+use core::arch::asm;
 pub enum MapType {
     Direct,
     Framed,
 }
 
-// MapArea 一个内存段
+// MemoryArea 一个内存段
 // VPNRange定义了段内存的虚拟页号范围
-pub struct MapArea {
+pub struct MemoryArea {
     vpns: VPNRange,
     mapped_frames: BTreeMap<VirtPageNumber, FrameTracker>,
     map_type: MapType,
@@ -37,8 +38,8 @@ bitflags! {
 }
 
 pub struct MemorySet {
-    page_table: PageTable,
-    areas: Vec<MapArea>,
+    pub page_table: PageTable,
+    areas: Vec<MemoryArea>,
 }
 
 impl VPNRange {
@@ -47,7 +48,7 @@ impl VPNRange {
     }
 }
 
-impl MapArea {
+impl MemoryArea {
     pub fn new(start_va: VirtAddr, end_va: VirtAddr, map_type: MapType, perm: MapPermission) -> Self {
         let start_vpn = start_va.floor();
         let end_vpn = end_va.floor();
@@ -55,9 +56,11 @@ impl MapArea {
     }
     // 将该段与页表映射
     pub fn map(&mut self, page_table: &mut PageTable) {
+        debug!("mapping area, start_vpn: {}, end_vpn: {}", self.vpns.start_vpn.0, self.vpns.end_vpn.0);
         for vpn in self.vpns {
             self.map_vpn(page_table, vpn);
         }
+        debug!("vpns mapped, from: {}, to: {}", self.vpns.start_vpn.0, self.vpns.end_vpn.0);
     }
     // 解除该段与页表的映射
     pub fn unmap(&mut self, page_table: &mut PageTable) {
@@ -118,12 +121,20 @@ impl MemorySet {
     pub fn new_empty() -> Self {
         return Self { page_table: PageTable::new(), areas: Vec::new() };
     }
-    pub fn push(&mut self, area: MapArea, data: Option<&[u8]>) {
+    // push一个内存段到内存合集中
+    pub fn push(&mut self, mut area: MemoryArea, data: Option<&[u8]>) {
         area.map(&mut self.page_table);
         if let Some(d) = data {
             area.copy_data(&mut self.page_table, d);
         }
         self.areas.push(area);
+    }
+    pub fn reset_satp(&self) {
+        let satp = self.page_table.satp_value();
+        unsafe {
+            satp::write(satp);
+            asm!("sfence.vma");
+        }
     }
 }
 

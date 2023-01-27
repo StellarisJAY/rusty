@@ -122,3 +122,13 @@ pub fn get_num_apps() -> usize {
     }
     num_apps
 }
+
+// 加载app数据，获得一个字节数组
+pub fn load_app_data(app_id: usize) -> &'static [u8] {
+    let ptr = _num_app as usize as *const usize;
+    unsafe {
+        let num_apps = ptr.read_volatile() as usize;
+        let app_addrs = core::slice::from_raw_parts(ptr.add(1), num_apps);
+        return core::slice::from_raw_parts(app_addrs[app_id] as *const u8, app_addrs[app_id + 1] - app_addrs[app_id]);
+    }
+}

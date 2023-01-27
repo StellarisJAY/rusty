@@ -34,9 +34,7 @@ pub fn rust_main() {
     kernel_info!("bootloader done");
     // 清空bss段
     clear_bss();
-    mem::heap_allocator::init_heap();
-    mem::frame_allocator::init_frame_allocator();
-    mem::frame_allocator::frame_allocator_test();
+    mem::init();
     unsafe {loader::load_apps();}
     // 初始化陷入
     unsafe {trap::init();}
