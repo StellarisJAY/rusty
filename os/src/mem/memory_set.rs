@@ -13,7 +13,7 @@ pub enum MapType {
 
 // MapArea 一个内存段
 // VPNRange定义了段内存的虚拟页号范围
-struct MapArea {
+pub struct MapArea {
     vpns: VPNRange,
     mapped_frames: BTreeMap<VirtPageNumber, FrameTracker>,
     map_type: MapType,
@@ -111,6 +111,19 @@ impl MapArea {
             _ => {},
         }
         page_table.unmap(vpn);
+    }
+}
+
+impl MemorySet {
+    pub fn new_empty() -> Self {
+        return Self { page_table: PageTable::new(), areas: Vec::new() };
+    }
+    pub fn push(&mut self, area: MapArea, data: Option<&[u8]>) {
+        area.map(&mut self.page_table);
+        if let Some(d) = data {
+            area.copy_data(&mut self.page_table, d);
+        }
+        self.areas.push(area);
     }
 }
 
