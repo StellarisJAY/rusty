@@ -4,6 +4,8 @@ use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::vec::Vec;
 use alloc::vec;
 
+const RISCV_PTE_PPN_OFFSET: usize = 10;
+
 bitflags! {
     pub struct PTEFlags: u8 {
         const V = 1 << 0;
@@ -36,13 +38,14 @@ pub struct PageTable {
 
 impl PageTableEntry {
     pub fn new(ppn: PhysPageNumber, flags: PTEFlags) -> Self {
-        Self { bits:  (ppn.0 & 0xfffffffffff) << 10 | flags.bits as usize}
+        Self { bits:  (ppn.0 & RISCV_PPN_MASK) << RISCV_PTE_PPN_OFFSET | flags.bits as usize}
     }
     pub fn empty() -> Self {
         Self{bits: 0}
     }
+    // 从pte获取ppn，pte中的ppn共44位，从低位第
     pub fn page_number(&self) -> PhysPageNumber {
-        PhysPageNumber(self.bits >> 10 & (1usize << 44 - 1))
+        return PhysPageNumber(self.bits >> RISCV_PTE_PPN_OFFSET & RISCV_PPN_MASK);
     }
     pub fn flags(&self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()

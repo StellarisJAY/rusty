@@ -1,13 +1,16 @@
-use crate::config::{PAGE_OFFSET_MASK, PAGE_SIZE_BITS, PAGE_SIZE};
+use crate::config::{PAGE_OFFSET_MASK, PAGE_SIZE, PAGE_SIZE_BITS};
 use super::page_table::PageTableEntry;
 
-const RISCV_PPN_WIDTH: usize = 44;
+pub const RISCV_PPN_WIDTH: usize = 44;
 // RISCV物理地址长度，56位。
-const RISCV_PA_WIDTH: usize = 56;
+pub const RISCV_PA_WIDTH: usize = 56;
 // RISCV页表号长度27位
-const RISCV_VPN_WIDTH: usize = 27;
+pub const RISCV_VPN_WIDTH: usize = 27;
 // RISCV虚拟地址长度39位，最多表示512GiB的地址空间
-const RISCV_VA_WIDTH: usize = 39;
+pub const RISCV_VA_WIDTH: usize = 39;
+
+pub const RISCV_PPN_MASK: usize = 1<<RISCV_PPN_WIDTH - 1;
+pub const RISCV_VPN_MASK: usize = 1<<RISCV_VPN_WIDTH - 1;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(pub usize);
@@ -27,6 +30,11 @@ impl PhysAddr {
     pub fn floor(&self) -> PhysPageNumber { PhysPageNumber(self.0 / PAGE_SIZE) }
     // 物理地址向上取整获得物理页号
     pub fn ceil(&self) -> PhysPageNumber { PhysPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
+
+    // 物理页号转换成物理页的基地址
+    pub fn from_ppn(ppn: PhysPageNumber) -> Self {
+        return Self(ppn.0 & RISCV_PPN_MASK << PAGE_SIZE_BITS)
+    }
 }
 
 impl VirtAddr {
@@ -37,25 +45,29 @@ impl VirtAddr {
     pub fn floor(&self) -> VirtPageNumber { VirtPageNumber(self.0 / PAGE_SIZE) }
     // 物理地址向上取整获得物理页号
     pub fn ceil(&self) -> VirtPageNumber { VirtPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
+    // 从虚拟页号获取虚拟地址基地址，RISC-V的虚拟页号只有39位
+    pub fn from_vpn(vpn: VirtPageNumber) -> Self {
+        return Self(vpn.0 & RISCV_VPN_MASK << PAGE_SIZE_BITS);
+    }
 }
 
 
 impl PhysPageNumber {
     // 将一个物理页作为mutable切片返回
     pub fn as_bytes_array(&self) -> &'static mut [u8] {
-        let start_ptr = ((self.0 * PAGE_SIZE) as usize)  as *mut u8;
+        let start_ptr = self.get_base_address()  as *mut u8;
         unsafe {core::slice::from_raw_parts_mut(start_ptr, PAGE_SIZE)}
     }
     // 将一个物理页作为多级页表的页表项数组返回
     // 一个物理页（4KiB）可以容纳 512个页表项（8 字节）
     pub fn as_pte_array(&self) -> &'static mut [PageTableEntry] {
-        let ptr = ((self.0 * PAGE_SIZE) as usize)  as *mut PageTableEntry;
+        let ptr = self.get_base_address() as *mut PageTableEntry;
         let array = unsafe{core::slice::from_raw_parts_mut(ptr, PAGE_SIZE / 8)};
         return array;
     }
 
     pub fn get_base_address(&self) -> usize {
-        self.0 * PAGE_SIZE
+        return self.0 & RISCV_PPN_MASK << PAGE_SIZE_BITS;
     }
 }
 
@@ -72,8 +84,4 @@ impl VirtPageNumber {
         }
         return idxs;
     }
-}
-
-impl From<PhysPageNumber> for PhysAddr {
-    fn from(v: PhysPageNumber) -> Self { Self(v.0 << PAGE_SIZE_BITS) }
 }
