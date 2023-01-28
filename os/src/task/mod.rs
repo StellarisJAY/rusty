@@ -1,33 +1,18 @@
 use core::arch::global_asm;
-use context::TaskContext;
 use crate::sync::UPSafeCell;
-use crate::config::MAX_TASK_COUNT;
 use lazy_static::lazy_static;
-use crate::loader::{get_num_apps, get_base_addr, USER_STACK, KERNEL_STACK};
-use crate::trap::context::TrapContext;
+use crate::loader::{get_num_apps, load_app_data};
+use task::*;
+use context::*;
+use alloc::vec::Vec;
 
 mod context;
+pub mod task;
 
 global_asm!(include_str!("../asm/switch.S"));
 
 extern "C" {
     pub fn __switch(current_ctx: *mut TaskContext, next_ctx: *const TaskContext);
-}
-
-// 任务状态枚举
-#[derive(Clone, Copy, PartialEq)]
-pub enum TaskStatus {
-    New, // 新建，未初始化
-    Ready, // 就绪，已初始化，可运行
-    Running, // 运行中
-    Exited, // 已结束
-}
-// TaskControlBlock 任务控制块
-// 保存当前任务的状态，以及任务的上下文
-#[derive(Clone, Copy)]
-pub struct TaskControlBlock {
-    pub status: TaskStatus,
-    pub ctx: TaskContext
 }
 
 pub struct TaskManager {
@@ -36,7 +21,7 @@ pub struct TaskManager {
 }
 
 struct TaskManagerInstance {
-    task_control_blocks: [TaskControlBlock; MAX_TASK_COUNT],
+    task_control_blocks: Vec<TaskControlBlock>,
     current_task: usize,
 }
 
@@ -44,19 +29,12 @@ lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
         let num_apps = get_num_apps();
         // 创建空的task数组
-        let mut tasks = [TaskControlBlock{
-            status: TaskStatus::New,
-            ctx:TaskContext::new_empty_ctx()
-        };
-        MAX_TASK_COUNT];
+        let mut tasks: Vec<TaskControlBlock> = Vec::new();
 
         for app_id in 0..num_apps {
-            tasks[app_id].status = TaskStatus::Ready;
-            // 为每一个任务的内核栈创建一个TrapContext，用来通过restore启动app
-            // trap的sepc设置为app的入口地址，使restore程序能够跳转到app代码
-            let trap_ctx = TrapContext::init_context(get_base_addr(app_id), USER_STACK[app_id].get_sp());
-            // 创建一个ra指向__restore的任务上下文，当切换到该任务时，通过restore切换回U状态，执行任务
-            tasks[app_id].ctx = TaskContext::trap_restore_context(KERNEL_STACK[app_id].push_context(trap_ctx) as *const _ as usize);
+            let tcb = TaskControlBlock::new(load_app_data(app_id), app_id);
+            tcb.status = TaskStatus::Ready;
+            tasks.push(tcb);
         }
         let instance = unsafe {
             UPSafeCell::new(TaskManagerInstance{
