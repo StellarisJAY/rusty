@@ -19,6 +19,7 @@ pub struct StackFrameAllocator {
     recycled: Vec<usize>,
 }
 
+#[derive(Clone)]
 pub struct FrameTracker {
     pub ppn: PhysPageNumber,
 }

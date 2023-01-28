@@ -9,6 +9,7 @@ use riscv::register::satp;
 use core::arch::asm;
 use crate::config::TRAMPOLINE;
 
+#[derive(Clone)]
 pub enum MapType {
     Direct,
     Framed,
@@ -16,6 +17,7 @@ pub enum MapType {
 
 // MemoryArea 一个内存段
 // VPNRange定义了段内存的虚拟页号范围
+#[derive(Clone)]
 pub struct MemoryArea {
     pub vpns: VPNRange,
     mapped_frames: BTreeMap<VirtPageNumber, FrameTracker>,

@@ -37,7 +37,7 @@ impl TaskControlBlock {
         let trap_ctx_ppn = memory_set.page_table.vpn_to_ppn(VirtAddr(TRAP_CONTEXT).floor()).unwrap().page_number();
         let (kernel_stack_top, kernel_stack_bottom) = kernel_stack_position(app_id);
         // 内核空间中创建该任务的内核栈区域
-        let kernel_space = KERNEL_SPACE.exclusive_borrow();
+        let mut kernel_space = KERNEL_SPACE.exclusive_borrow();
         kernel_space.push(MemoryArea::new(VirtAddr(kernel_stack_bottom),
             VirtAddr(kernel_stack_top),
             MapType::Framed,

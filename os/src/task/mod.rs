@@ -70,7 +70,7 @@ pub fn current_task_satp() -> usize {
 impl TaskManager {
     fn current_task_satp(&self) -> usize {
         let instance = self.instance.exclusive_borrow();
-        let tcb = instance.task_control_blocks[instance.current_task];
+        let tcb = instance.task_control_blocks[instance.current_task].clone();
         let satp = tcb.memory_set.page_table.satp_value();
         drop(instance);
         return satp;
@@ -91,7 +91,7 @@ impl TaskManager {
 
     fn find_next_task(&self) -> Option<usize> {
         let manager = self.instance.exclusive_borrow();
-        let tasks = manager.task_control_blocks;
+        let tasks = manager.task_control_blocks.clone();
         for id in 0..tasks.len() {
             if tasks[id].status == TaskStatus::Ready {
                 drop(manager);
@@ -105,12 +105,11 @@ impl TaskManager {
     fn run_first_task(&self) -> ! {
         let mut instance = self.instance.exclusive_borrow();
         instance.current_task = 0;
-        let mut task0 = instance.task_control_blocks[0];
-        task0.status = TaskStatus::Running;
+        instance.task_control_blocks[0].status = TaskStatus::Running;
         let mut _unused = TaskContext::new_empty_ctx();
         drop(instance);
         unsafe {
-            __switch(&mut _unused as *mut TaskContext, & task0.ctx as *const TaskContext);
+            __switch(&mut _unused as *mut TaskContext, &(instance.task_control_blocks[0].ctx) as *const TaskContext);
         }
         panic!("unreachable in run_first_task!");
     }

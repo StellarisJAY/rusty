@@ -33,6 +33,7 @@ pub struct PageTableEntry {
 // PageTable，三级页表根节点
 // 每级页表用一个物理页保存，所以根节点需要一个root_ppn
 // 一个物理页4KiB，一个页表项8B，所以一级页表可以容纳512个页表项
+#[derive(Clone)]
 pub struct PageTable {
     pub root_ppn: PhysPageNumber,
     frames: Vec<FrameTracker>,
