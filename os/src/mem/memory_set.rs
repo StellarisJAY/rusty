@@ -1,12 +1,13 @@
-use super::address::{VirtPageNumber, VirtAddr, PhysAddr, PhysPageNumber};
+use super::address::{VirtPageNumber, VirtAddr, PhysPageNumber};
 use crate::config::PAGE_SIZE;
-use super::frame_allocator::{FrameTracker, alloc_frame, dealloc_frame};
+use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::collections::BTreeMap;
 use bitflags::bitflags;
 use super::page_table::{PageTable, PTEFlags};
 use alloc::vec::Vec;
 use riscv::register::satp;
 use core::arch::asm;
+
 pub enum MapType {
     Direct,
     Framed,
@@ -56,11 +57,9 @@ impl MemoryArea {
     }
     // 将该段与页表映射
     pub fn map(&mut self, page_table: &mut PageTable) {
-        debug!("mapping area, start_vpn: {}, end_vpn: {}", self.vpns.start_vpn.0, self.vpns.end_vpn.0);
         for vpn in self.vpns {
             self.map_vpn(page_table, vpn);
         }
-        debug!("vpns mapped, from: {}, to: {}", self.vpns.start_vpn.0, self.vpns.end_vpn.0);
     }
     // 解除该段与页表的映射
     pub fn unmap(&mut self, page_table: &mut PageTable) {
@@ -133,7 +132,9 @@ impl MemorySet {
         let satp = self.page_table.satp_value();
         unsafe {
             satp::write(satp);
-            asm!("sfence.vma");
+            // 刷新TLB，第一个参数是要刷新的虚拟页号，第二个是进程标识符ASID
+            // 两个参数都为0，表示刷新所有的TLB
+            asm!("sfence.vma x0, x0");
         }
     }
 }

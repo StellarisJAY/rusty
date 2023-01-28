@@ -39,16 +39,16 @@ pub fn init_frame_allocator() {
     let mut allocator = FRAME_ALLOCATOR.exclusive_borrow();
     // 内核同样需要占用物理内存页，所以从内核结束地址ekernel计算可分配内存的初始页号
     allocator.init(PhysAddr(ekernel as usize).ceil(),  PhysAddr(MEMORY_END).ceil());
-    kernel_info!("frame allocator space: [{:#x}, {:#x})", allocator.current, allocator.end);
+    kernel_info!("frame allocator space: [{}, {})", allocator.current, allocator.end);
     drop(allocator);
 }
 
 // 分配一个物理页，返回Optional
 pub fn alloc_frame() -> Option<FrameTracker> {
     let mut allocator = FRAME_ALLOCATOR.exclusive_borrow();
-    let res = allocator.alloc().map(|ppn| {FrameTracker::new(ppn)});
+    let ppn = allocator.alloc().unwrap();
     drop(allocator);
-    return res;
+    return Some(FrameTracker::new(ppn));
 }
 
 // 释放一个物理页，错误的页号会导致panic
