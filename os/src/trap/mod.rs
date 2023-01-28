@@ -1,11 +1,13 @@
-use core::arch::global_asm;
+use core::arch::{global_asm, asm};
 use riscv::register::{stvec, scause, stval, sie};
 use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::{Exception, Interrupt};
 use crate::syscall::syscall;
-use crate::task::{run_next_task, exit_current_task, suspend_current_task};
+use crate::task::{run_next_task, exit_current_task, suspend_current_task, current_task_satp};
 use crate::timer;
+use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+
 // 导入Trap上下文切换的汇编
 global_asm!(include_str!("../asm/trap.S"));
 
@@ -25,6 +27,39 @@ pub fn enable_stimer() {
         sie::set_stimer();
     }
 }
+
+// 设置U到S的trap入口
+pub fn set_user_mode_trap_entry() {
+    unsafe {
+        // 将stvec寄存器值改为虚拟地址空间的TRAMPOLINE地址
+        // trap发生时，通过虚拟地址在当前地址空间找到对应的物理地址
+        stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_return() -> ! {
+    set_user_mode_trap_entry();
+    let trap_cx_ptr = TRAP_CONTEXT;
+    let user_satp = current_task_satp();
+    extern "C" {
+        fn __alltraps();
+        fn __restore();
+    }
+    // restore段的虚拟地址 = TRAMPOLINE虚拟地址 + __all_trap段大小
+    let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+    // 通过jr跳转到restore虚拟地址，处理器自动完成地址转换
+    unsafe {
+        asm!("fence.i",
+            "jr {restore_va}",
+            restore_va = in(reg) restore_va,
+            in("a0") trap_cx_ptr, // a0 寄存器写入trap上下文地址
+            in("a1") user_satp,   // a1 寄存器写入用户地址空间的satp，即用户地址空间的页表ppn
+            options(noreturn)
+        );
+    }
+}
+
 
 use context::TrapContext;
 #[no_mangle]

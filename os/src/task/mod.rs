@@ -32,7 +32,7 @@ lazy_static! {
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
 
         for app_id in 0..num_apps {
-            let tcb = TaskControlBlock::new(load_app_data(app_id), app_id);
+            let mut tcb = TaskControlBlock::new(load_app_data(app_id), app_id);
             tcb.status = TaskStatus::Ready;
             tasks.push(tcb);
         }
@@ -62,8 +62,20 @@ pub fn run_first_task() -> !{
     TASK_MANAGER.run_first_task()
 }
 
+pub fn current_task_satp() -> usize {
+    TASK_MANAGER.current_task_satp()
+}
+
 
 impl TaskManager {
+    fn current_task_satp(&self) -> usize {
+        let instance = self.instance.exclusive_borrow();
+        let tcb = instance.task_control_blocks[instance.current_task];
+        let satp = tcb.memory_set.page_table.satp_value();
+        drop(instance);
+        return satp;
+    }
+
     fn suspend_current_task(& self) {
         let mut manager = self.instance.exclusive_borrow();
         let task_id = manager.current_task;
@@ -92,8 +104,8 @@ impl TaskManager {
 
     fn run_first_task(&self) -> ! {
         let mut instance = self.instance.exclusive_borrow();
-        let mut task0 = instance.task_control_blocks[0];
         instance.current_task = 0;
+        let mut task0 = instance.task_control_blocks[0];
         task0.status = TaskStatus::Running;
         let mut _unused = TaskContext::new_empty_ctx();
         drop(instance);
