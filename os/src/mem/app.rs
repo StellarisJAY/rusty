@@ -7,6 +7,7 @@ use crate::config::{PAGE_SIZE, USER_STACK_SIZE, TRAP_CONTEXT, TRAMPOLINE};
 impl MemorySet {
     pub fn from_elf_data(data: &[u8]) -> (Self, usize, usize){
         let mut memory_set = MemorySet::new_empty();
+        // 在app的虚拟地址空间结尾映射内核的汇编代码
         memory_set.map_trampoline();
         let elf = xmas_elf::ElfFile::new(data).unwrap();
         let elf_header = elf.header;

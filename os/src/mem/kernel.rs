@@ -39,6 +39,8 @@ pub fn display_kernel_memory_layout() {
 impl MemorySet {
     pub fn new_kernel_space() -> Self{
         let mut memory_set = MemorySet::new_empty();
+        // 把汇编代码映射到在内核地址空间的末尾
+        memory_set.map_trampoline();
         display_kernel_memory_layout();
         memory_set.push(MemoryArea::new(
                 VirtAddr(stext as usize),

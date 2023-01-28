@@ -138,10 +138,13 @@ impl MemorySet {
             asm!("sfence.vma x0, x0");
         }
     }
+    // 将trampoline的汇编代码地址映射到 地址空间中的固定位置
     pub fn map_trampoline(&mut self) {
         extern "C" {
             fn strampoline();
         }
+        // strampoline为汇编代码的物理地址，TRAMPOLINE是虚拟地址
+        // 将vpn与ppn在当前的地址空间中绑定
         self.page_table.map(VirtAddr(TRAMPOLINE).floor(), PhysAddr(strampoline as usize).floor(), PTEFlags::R | PTEFlags::X);
     }
 }

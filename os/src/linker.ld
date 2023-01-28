@@ -16,6 +16,11 @@ SECTIONS
     /* text段包括了entry段和其他的所有text内容*/
     .text : {
         *(.text.entry)
+        . = ALIGN(4K);
+        strampoline = .;
+        /* .text段的汇编代码在trampoline之后*/
+        *(.text.trampoline);
+        . = ALIGN(4K);
         *(.text .text.*)
     }
     /* 在段的末尾进行内存对齐，保证段内存是4K整数倍*/
