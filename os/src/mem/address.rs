@@ -9,8 +9,8 @@ pub const RISCV_VPN_WIDTH: usize = 27;
 // RISCV虚拟地址长度39位，最多表示512GiB的地址空间
 pub const RISCV_VA_WIDTH: usize = 39;
 
-pub const RISCV_PPN_MASK: usize = 1<<RISCV_PPN_WIDTH - 1;
-pub const RISCV_VPN_MASK: usize = 1<<RISCV_VPN_WIDTH - 1;
+pub const RISCV_PPN_MASK: usize = (1<<RISCV_PPN_WIDTH) - 1;
+pub const RISCV_VPN_MASK: usize = (1<<RISCV_VPN_WIDTH) - 1;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(pub usize);
@@ -20,6 +20,7 @@ pub struct PhysPageNumber(pub usize);
 pub struct VirtAddr(pub usize);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtPageNumber(pub usize);
+
 
 impl PhysAddr {
     // 获取物理地址中的页内偏移
@@ -33,9 +34,10 @@ impl PhysAddr {
 
     // 物理页号转换成物理页的基地址
     pub fn from_ppn(ppn: PhysPageNumber) -> Self {
-        return Self(ppn.0 & RISCV_PPN_MASK << PAGE_SIZE_BITS)
+        return Self((ppn.0 & RISCV_PPN_MASK) << PAGE_SIZE_BITS)
     }
 }
+
 
 impl VirtAddr {
     pub fn page_offset(&self) -> usize {
@@ -47,7 +49,7 @@ impl VirtAddr {
     pub fn ceil(&self) -> VirtPageNumber { VirtPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
     // 从虚拟页号获取虚拟地址基地址，RISC-V的虚拟页号只有39位
     pub fn from_vpn(vpn: VirtPageNumber) -> Self {
-        return Self(vpn.0 & RISCV_VPN_MASK << PAGE_SIZE_BITS);
+        return Self((vpn.0 & RISCV_VPN_MASK) << PAGE_SIZE_BITS);
     }
 }
 
@@ -67,7 +69,8 @@ impl PhysPageNumber {
     }
 
     pub fn get_base_address(&self) -> usize {
-        return self.0 & RISCV_PPN_MASK << PAGE_SIZE_BITS;
+        let base_addr = (self.0 & RISCV_PPN_MASK) << PAGE_SIZE_BITS;
+        return base_addr;
     }
 }
 
