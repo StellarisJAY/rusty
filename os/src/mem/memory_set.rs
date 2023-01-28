@@ -39,6 +39,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone)]
 pub struct MemorySet {
     pub page_table: PageTable,
     areas: Vec<MemoryArea>,

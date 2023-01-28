@@ -16,6 +16,7 @@ pub enum TaskStatus {
 }
 // TaskControlBlock 任务控制块
 // 保存当前任务的状态，以及任务的上下文
+#[derive(Clone)]
 pub struct TaskControlBlock {
     pub status: TaskStatus,
     pub ctx: TaskContext,
