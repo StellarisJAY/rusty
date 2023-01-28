@@ -20,21 +20,7 @@ impl TrapContext {
         // sp被保存到x2寄存器
         self.x[2] = sp;
     }
-    // 初始化context，传入的是app的入口地址和用户栈的sp
-    pub fn init_context(app_entry: usize, sp: usize) -> Self {
-        let mut sstatus = sstatus::read();
-        sstatus.set_spp(SPP::User);
-        let mut ctx = TrapContext{
-            x: [0; 32],
-            sstatus: sstatus,
-            sepc: app_entry //离开S后跳回app_entry执行app
-        };
-        // 将ctx的sp设置成此时用户栈的sp
-        // 使restore操作时的sscratch是用户栈sp
-        ctx.set_sp(sp);
-        return ctx;
-    }
-
+    
     pub fn task_init_context(app_entry: usize, user_sp: usize, kernel_sp: usize, kernel_satp: usize, trap_handler: usize) -> Self {
         let mut sstatus = sstatus::read();
         sstatus.set_spp(SPP::User);
