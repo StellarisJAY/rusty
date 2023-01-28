@@ -1,4 +1,4 @@
-use super::address::{VirtPageNumber, VirtAddr, PhysPageNumber};
+use super::address::{VirtPageNumber, VirtAddr, PhysPageNumber, PhysAddr};
 use crate::config::PAGE_SIZE;
 use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::collections::BTreeMap;
@@ -7,6 +7,7 @@ use super::page_table::{PageTable, PTEFlags};
 use alloc::vec::Vec;
 use riscv::register::satp;
 use core::arch::asm;
+use crate::config::TRAMPOLINE;
 
 pub enum MapType {
     Direct,
@@ -16,16 +17,16 @@ pub enum MapType {
 // MemoryArea 一个内存段
 // VPNRange定义了段内存的虚拟页号范围
 pub struct MemoryArea {
-    vpns: VPNRange,
+    pub vpns: VPNRange,
     mapped_frames: BTreeMap<VirtPageNumber, FrameTracker>,
     map_type: MapType,
     map_perm: MapPermission,
 }
 
 #[derive(Clone, Copy)]
-struct VPNRange {
-    start_vpn: VirtPageNumber,
-    end_vpn: VirtPageNumber,
+pub struct VPNRange {
+    pub start_vpn: VirtPageNumber,
+    pub end_vpn: VirtPageNumber,
     current: VirtPageNumber,
 }
 
@@ -136,6 +137,12 @@ impl MemorySet {
             // 两个参数都为0，表示刷新所有的TLB
             asm!("sfence.vma x0, x0");
         }
+    }
+    pub fn map_trampoline(&mut self) {
+        extern "C" {
+            fn strampoline();
+        }
+        self.page_table.map(VirtAddr(TRAMPOLINE).floor(), PhysAddr(strampoline as usize).floor(), PTEFlags::R | PTEFlags::X);
     }
 }
 
