@@ -1,4 +1,3 @@
-init:
     .section .text.entry //声明.text.entry段，该段作为整个系统的入口
     .global _start
 _start:

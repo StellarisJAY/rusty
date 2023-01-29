@@ -1,8 +1,16 @@
+.altmacro
+.macro SAVE_GP n
+    sd x\n, \n*8(sp)
+.endm
+.macro LOAD_GP n
+    ld x\n, \n*8(sp)
+.endm
     .section .text.trampoline
     .globl __alltraps
     .globl __restore
     .align 2
 __alltraps:
+    # __alltraps之前：sp指向用户空间的栈，sscratch指向了trap_ctx
     csrrw sp, sscratch, sp
     # 此时sp指向Trap上下文地址，sscratch指向用户栈
     # 保存 x0 ~ x31
@@ -42,6 +50,7 @@ __restore:
     csrw satp, a1
     # 刷新TLB
     sfence.vma
+    # 使sscratch指向TrapContext
     csrw sscratch, a0
     mv sp, a0
     # 此时sp指向用户空间的TrapContext
@@ -58,6 +67,6 @@ __restore:
         LOAD_GP %n
         .set n, n+1
     .endr
-    # back to user stack
+    # 将x2加载到sp，是sp指向用户空间的用户栈
     ld sp, 2*8(sp)
     sret

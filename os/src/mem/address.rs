@@ -23,6 +23,9 @@ pub struct VirtPageNumber(pub usize);
 
 
 impl PhysAddr {
+    pub fn new(val: usize) -> Self {
+        return Self(val & ((1 << RISCV_PA_WIDTH) - 1));
+    }
     // 获取物理地址中的页内偏移
     pub fn page_offset(&self) -> usize {
         self.0 & PAGE_OFFSET_MASK
@@ -40,6 +43,9 @@ impl PhysAddr {
 
 
 impl VirtAddr {
+    pub fn new(val: usize) -> Self {
+        return Self(val & (1<<RISCV_VA_WIDTH - 1));
+    }
     pub fn page_offset(&self) -> usize {
         self.0 & PAGE_OFFSET_MASK
     }
@@ -67,7 +73,6 @@ impl PhysPageNumber {
         let array = unsafe{core::slice::from_raw_parts_mut(ptr, PAGE_SIZE / 8)};
         return array;
     }
-
     pub fn get_base_address(&self) -> usize {
         let base_addr = (self.0 & RISCV_PPN_MASK) << PAGE_SIZE_BITS;
         return base_addr;
@@ -86,5 +91,8 @@ impl VirtPageNumber {
             vpn = vpn >> 9;
         }
         return idxs;
+    }
+    pub fn step(&mut self) {
+        self.0 += 1;
     }
 }
