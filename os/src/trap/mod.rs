@@ -4,7 +4,7 @@ use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::{Exception, Interrupt};
 use crate::syscall::syscall;
-use crate::task::{run_next_task, exit_current_task, suspend_current_task, current_task_satp};
+use crate::task::{run_next_task, exit_current_task, suspend_current_task, current_task_satp, current_task_trap_ctx};
 use crate::timer;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 
@@ -13,15 +13,6 @@ global_asm!(include_str!("../asm/trap.S"));
 
 pub mod context;
 
-pub unsafe fn init() {
-    extern "C" {
-        fn __alltraps();
-    }
-    // 将all_trap汇编的地址写入stvec寄存器，即Trap处理入口寄存器
-    // 之后发生trap后会从stvec寄存器找到trap处理逻辑
-    stvec::write(__alltraps as usize, TrapMode::Direct);
-}
-
 pub fn enable_stimer() {
     unsafe {
         sie::set_stimer();
@@ -29,12 +20,23 @@ pub fn enable_stimer() {
 }
 
 // 设置U到S的trap入口
-pub fn set_user_mode_trap_entry() {
+fn set_user_mode_trap_entry() {
     unsafe {
         // 将stvec寄存器值改为虚拟地址空间的TRAMPOLINE地址
-        // trap发生时，通过虚拟地址在当前地址空间找到对应的物理地址
+        // TRAMPOLINE虚拟地址对应的物理地址就是__all_traps的起始地址
         stvec::write(TRAMPOLINE as usize, TrapMode::Direct);
     }
+}
+
+fn set_kernel_trap_entry() {
+    unsafe {
+        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+    }
+}
+
+#[no_mangle]
+pub fn trap_from_kernel() -> ! {
+    panic!("trap from kernel not allowed");
 }
 
 #[no_mangle]
@@ -61,9 +63,10 @@ pub fn trap_return() -> ! {
 }
 
 
-use context::TrapContext;
 #[no_mangle]
-pub fn trap_handler(ctx: &mut TrapContext) -> &mut TrapContext {
+pub fn trap_handler() {
+    set_kernel_trap_entry();
+    let ctx = current_task_trap_ctx();
     // 从scause和stval读取trap原因和trap信息
     let scause = scause::read();
     let stval = stval::read();
@@ -104,5 +107,5 @@ pub fn trap_handler(ctx: &mut TrapContext) -> &mut TrapContext {
             panic!("unsupported trap, cause: {:?}, stval: {:#x}", scause.cause(), stval);
         }
     }
-    return ctx;
+    trap_return();
 }
