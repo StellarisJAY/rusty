@@ -12,5 +12,4 @@ pub fn init() {
     let kernel_space = kernel::KERNEL_SPACE.exclusive_borrow();
     kernel_space.reset_satp();
     drop(kernel_space);
-    kernel::remap_test();
 }

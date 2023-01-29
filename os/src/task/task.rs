@@ -32,7 +32,9 @@ impl TaskControlBlock {
     // 在内核空间映射任务的内核栈
     // 创建新的trap_context并绑定到之前获得的ppn
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
+        debug!("mapping elf data");
         let (memory_set, user_stack_sp, entry_point) = MemorySet::from_elf_data(elf_data);
+        debug!("app elf data mapped to memory_set, root_ppn: {}", memory_set.page_table.root_ppn.0);
         // 将该任务固定的TRAP_CONTEXT虚拟地址转换为确定的物理页号
         let trap_ctx_ppn = memory_set.page_table.vpn_to_ppn(VirtAddr(TRAP_CONTEXT).floor()).unwrap().page_number();
         let (kernel_stack_top, kernel_stack_bottom) = kernel_stack_position(app_id);
@@ -48,7 +50,7 @@ impl TaskControlBlock {
             memory_set: memory_set,
             trap_ctx_ppn: trap_ctx_ppn,
             base_size: user_stack_sp,
-            ctx: TaskContext::trap_restore_context(kernel_stack_top),
+            ctx: TaskContext::trap_return_context(kernel_stack_bottom),
         };
         let trap_ctx = tcb.get_trap_context();
         // 创建新的context
@@ -57,9 +59,11 @@ impl TaskControlBlock {
         kernel_stack_bottom,
         kernel_space.page_table.satp_value(),
         trap_handler as usize);
+        drop(kernel_space);
+        debug!("application_{} loaded, memory set created", app_id);
         return tcb;
     }
-    fn get_trap_context(&self) -> &'static mut TrapContext {
+    pub fn get_trap_context(&self) -> &'static mut TrapContext {
         let ptr = self.trap_ctx_ppn.get_base_address() as *mut TrapContext;
         unsafe {
             let ctx = ptr.as_mut().unwrap();

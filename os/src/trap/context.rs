@@ -33,7 +33,7 @@ impl TrapContext {
             trap_handler: trap_handler,
         };
         // 将ctx的sp设置成此时用户栈的sp
-        // 使restore操作时的sscratch是用户栈sp
+        // 使restore后sp指向用户空间的用户栈
         ctx.set_sp(user_sp);
         return ctx;
     }

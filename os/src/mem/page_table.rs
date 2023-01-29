@@ -3,6 +3,7 @@ use super::address::*;
 use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::vec::Vec;
 use alloc::vec;
+use crate::config::PAGE_SIZE;
 
 const RISCV_PTE_PPN_OFFSET: usize = 10;
 const RISCV_SATP_MODE_WIDTH: usize = 4;
@@ -145,4 +146,29 @@ impl PageTable {
     pub fn satp_value(&self) -> usize {
         return (8 << RISCV_SATP_MODE_OFFSET) | (self.root_ppn.0 & RISCV_PPN_MASK);
     }
+}
+
+pub fn translated_byte_buffer(
+        satp: usize,
+        ptr: *const u8,
+        len: usize
+) -> Vec<&'static [u8]> {
+    let page_table = PageTable::from_satp_register(satp);
+    let mut start = ptr as usize;
+    let end = start + len;
+    let mut v = Vec::new();
+    while start < end {
+        let start_va = VirtAddr(start);
+        let mut vpn = start_va.floor();
+        let ppn = page_table
+            .vpn_to_ppn(vpn)
+            .unwrap()
+            .page_number();
+        vpn.step();
+        let mut end_va = VirtAddr::from_vpn(vpn);
+        end_va = end_va.min(VirtAddr::new(end));
+        v.push(&ppn.as_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
+        start = end_va.0;
+    }
+    return v;
 }

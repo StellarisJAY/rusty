@@ -5,6 +5,7 @@ use crate::loader::{get_num_apps, load_app_data};
 use task::*;
 use context::*;
 use alloc::vec::Vec;
+use crate::trap::context::TrapContext;
 
 mod context;
 pub mod task;
@@ -27,10 +28,11 @@ struct TaskManagerInstance {
 
 lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
+        debug!("loading apps");
         let num_apps = get_num_apps();
+        debug!("loading apps, count: {}", num_apps);
         // 创建空的task数组
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
-
         for app_id in 0..num_apps {
             let mut tcb = TaskControlBlock::new(load_app_data(app_id), app_id);
             tcb.status = TaskStatus::Ready;
@@ -44,6 +46,10 @@ lazy_static! {
         };
         TaskManager { num_tasks: num_apps, instance:  instance}
     };
+}
+
+pub fn init() {
+    TASK_MANAGER.init();
 }
 
 pub fn exit_current_task() {
@@ -66,14 +72,29 @@ pub fn current_task_satp() -> usize {
     TASK_MANAGER.current_task_satp()
 }
 
+pub fn current_task_trap_ctx() -> &'static mut TrapContext {
+    TASK_MANAGER.current_task_trap_ctx()
+}
+
 
 impl TaskManager {
+    pub fn init(&self) {
+        kernel_info!("task manager initialized...");
+    }
+
     fn current_task_satp(&self) -> usize {
         let instance = self.instance.exclusive_borrow();
         let tcb = instance.task_control_blocks[instance.current_task].clone();
         let satp = tcb.memory_set.page_table.satp_value();
         drop(instance);
         return satp;
+    }
+
+    fn current_task_trap_ctx(&self) -> &'static mut TrapContext {
+        let manager = self.instance.exclusive_borrow();
+        let ctx = manager.task_control_blocks[manager.current_task].get_trap_context();
+        drop(manager);
+        return ctx;
     }
 
     fn suspend_current_task(& self) {
@@ -107,9 +128,11 @@ impl TaskManager {
         instance.current_task = 0;
         instance.task_control_blocks[0].status = TaskStatus::Running;
         let mut _unused = TaskContext::new_empty_ctx();
+        let first_task_ctx_ptr = &instance.task_control_blocks[0].ctx as *const TaskContext;
         drop(instance);
+
         unsafe {
-            __switch(&mut _unused as *mut TaskContext, &(instance.task_control_blocks[0].ctx) as *const TaskContext);
+            __switch(&mut _unused as *mut TaskContext, first_task_ctx_ptr);
         }
         panic!("unreachable in run_first_task!");
     }
