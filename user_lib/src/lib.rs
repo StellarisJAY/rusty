@@ -11,8 +11,6 @@ pub mod lang_items;
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start(){
-    // 清空bss
-    clear_bss();
     // 执行main，并用main返回的exit_code退出
     exit(main());
 }
@@ -23,16 +21,6 @@ pub extern "C" fn _start(){
 #[no_mangle]
 fn main() -> i32 {
     panic!("cannot find main");
-}
-
-fn clear_bss() {
-    extern "C" {
-        fn start_bss();
-        fn end_bss();
-    }
-    (start_bss as usize..end_bss as usize).for_each(|addr| unsafe {
-        (addr as *mut u8).write_volatile(0);
-    });
 }
 
 use syscall::*;
