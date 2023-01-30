@@ -56,7 +56,7 @@ impl VPNRange {
 impl MemoryArea {
     pub fn new(start_va: VirtAddr, end_va: VirtAddr, map_type: MapType, perm: MapPermission) -> Self {
         let start_vpn = start_va.floor();
-        let end_vpn = end_va.floor();
+        let end_vpn = end_va.ceil();
         return Self { vpns: VPNRange::new(start_vpn, end_vpn), mapped_frames: BTreeMap::new(), map_type: map_type, map_perm: perm };
     }
     // 将该段与页表映射
@@ -102,7 +102,7 @@ impl MemoryArea {
             MapType::Framed => {
                 let frame = alloc_frame().unwrap();
                 ppn = frame.ppn;
-                self.mapped_frames.insert(vpn, FrameTracker{ppn: ppn});
+                self.mapped_frames.insert(vpn, frame);
             }
         }
         let flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
