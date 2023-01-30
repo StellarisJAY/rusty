@@ -1,14 +1,11 @@
 build:
-	@python3 build.py
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/00hello_world -O binary target/riscv64gc-unknown-none-elf/release/00hello_world.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/01store_fault -O binary target/riscv64gc-unknown-none-elf/release/01store_fault.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/02power -O binary target/riscv64gc-unknown-none-elf/release/02power.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/03priv_inst -O binary target/riscv64gc-unknown-none-elf/release/03priv_inst.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/04priv_csr -O binary target/riscv64gc-unknown-none-elf/release/04priv_csr.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/05power_3 -O binary target/riscv64gc-unknown-none-elf/release/05power_3.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/06power_5 -O binary target/riscv64gc-unknown-none-elf/release/06power_5.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/07power_7 -O binary target/riscv64gc-unknown-none-elf/release/07power_7.bin
-	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/08sleep -O binary target/riscv64gc-unknown-none-elf/release/08sleep.bin
+	@cargo build --release
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/00power_3 -O binary target/riscv64gc-unknown-none-elf/release/00power_3.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/01power_5 -O binary target/riscv64gc-unknown-none-elf/release/01power_5.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/02power_7 -O binary target/riscv64gc-unknown-none-elf/release/02power_7.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/03sleep -O binary target/riscv64gc-unknown-none-elf/release/03sleep.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/04load_fault -O binary target/riscv64gc-unknown-none-elf/release/04load_fault.bin
+	@rust-objcopy --strip-all target/riscv64gc-unknown-none-elf/release/05store_fault -O binary target/riscv64gc-unknown-none-elf/release/05store_fault.bin
 env:
 	@rustup install nightly
 	@rustup default nightly

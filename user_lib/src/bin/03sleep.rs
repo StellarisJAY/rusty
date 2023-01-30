@@ -6,6 +6,6 @@ extern crate lib_rusty;
 
 #[no_mangle]
 fn main() -> i32 {
-    println!("Hello, world!");
+    println!("Test sleep OK!");
     0
 }
