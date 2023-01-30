@@ -44,7 +44,7 @@ impl PhysAddr {
 
 impl VirtAddr {
     pub fn new(val: usize) -> Self {
-        return Self(val & (1<<RISCV_VA_WIDTH - 1));
+        return Self(val & ((1<<RISCV_VA_WIDTH) - 1));
     }
     pub fn page_offset(&self) -> usize {
         self.0 & PAGE_OFFSET_MASK

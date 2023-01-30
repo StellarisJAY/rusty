@@ -14,8 +14,6 @@ extern "C" {
     fn edata();
     fn sbss();
     fn ebss();
-    fn boot_stack_lower_bound();
-    fn boot_stack_top();
     fn ekernel();
 }
 
@@ -23,51 +21,38 @@ lazy_static! {
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> = unsafe {Arc::new(UPSafeCell::new(MemorySet::new_kernel_space()))};
 }
 
-#[allow(unused)]
-// 打印.text .bss .data .rodata段的地址
-pub fn display_kernel_memory_layout() {
-    debug!(".text section: [{:#x}, {:#x})", stext as usize, etext as usize);
-    debug!(".rodata section: [{:#x}, {:#x})", srodata as usize, erodata as usize);
-    debug!(".data section: [{:#x}, {:#x})", sdata as usize, edata as usize);
-    debug!("boot stack: [{:#x}, {:#x}), stack size: {}KiB",
-        boot_stack_lower_bound as usize,
-        boot_stack_top as usize,
-        (boot_stack_top as usize - boot_stack_lower_bound as usize) / 1024);
-    debug!(".bss section: [{:#x}, {:#x})", sbss as usize, ebss as usize);
-}
-
 impl MemorySet {
     pub fn new_kernel_space() -> Self{
         let mut memory_set = MemorySet::new_empty();
+        kernel_info!("mapping kernel space, Map Mode: Direct");
         // 把汇编代码映射到在内核地址空间的末尾
         memory_set.map_trampoline();
-        display_kernel_memory_layout();
         memory_set.push(MemoryArea::new(
-                VirtAddr(stext as usize),
-                VirtAddr(etext as usize),
+                VirtAddr::new(stext as usize),
+                VirtAddr::new(etext as usize),
                 MapType::Direct,MapPermission::R | MapPermission::X), None);
-        kernel_info!(".text memory area created");
+        kernel_info!(".text memory mapped, mem range: [{:#x}, {:#x})", stext as usize, etext as usize);
         memory_set.push(MemoryArea::new(
-                VirtAddr(srodata as usize),
-                VirtAddr(erodata as usize),
+                VirtAddr::new(srodata as usize),
+                VirtAddr::new(erodata as usize),
                 MapType::Direct, MapPermission::R), None);
-        kernel_info!(".rodata memory area created");
+        kernel_info!(".rodata memory mapped, mem range: [{:#x}, {:#x})", srodata as usize, erodata as usize);
         memory_set.push(MemoryArea::new(
-                VirtAddr(sdata as usize),
-                VirtAddr(edata as usize),
+                VirtAddr::new(sdata as usize),
+                VirtAddr::new(edata as usize),
                 MapType::Direct, MapPermission::R | MapPermission::W), None);
-        kernel_info!(".data memory area created");
+        kernel_info!(".data memory mapped, mem range: [{:#x}, {:#x})", sdata as usize, edata as usize);
         memory_set.push(MemoryArea::new(
-                VirtAddr(sbss as usize),
-                VirtAddr(ebss as usize),
+                VirtAddr::new(sbss as usize),
+                VirtAddr::new(ebss as usize),
                 MapType::Direct, MapPermission::R | MapPermission::W), None);
-        kernel_info!(".bss memory area created");
+        kernel_info!(".bss memory mapped, mem range: [{:#x}, {:#x})", sbss as usize, ebss as usize);
 
         memory_set.push(MemoryArea::new(
-                VirtAddr(ekernel as usize),
-                VirtAddr(MEMORY_END),
+                VirtAddr::new(ekernel as usize),
+                VirtAddr::new(MEMORY_END),
                 MapType::Direct, MapPermission::R | MapPermission::W ), None);
-        kernel_info!("physical memory area created");
+        kernel_info!("physical memory mapped");
         return memory_set;
     }
 }

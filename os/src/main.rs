@@ -11,6 +11,8 @@ mod sbi;
 mod console;
 mod syscall;
 
+
+mod banner;
 mod sync;
 mod trap;
 mod loader;
@@ -26,14 +28,15 @@ use core::arch::global_asm;
 // 因此，entry.asm中的内容将负责完成系统的启动
 global_asm!(include_str!("asm/entry.asm"));
 // 载入app程序代码
-global_asm!(include_str!("asm/link_app_ch3.S"));
+global_asm!(include_str!("asm/link_app.S"));
 
 // entry.asm中完成启动后，通过call rust_main命令跳转到该函数中
 #[no_mangle]
 pub fn rust_main() {
-    kernel_info!("bootloader done");
+    banner::print_banner();
     // 清空bss段
     clear_bss();
+    display_sstatus();
     mem::init();
     unsafe {loader::load_apps();}
     // 初始化陷入
@@ -59,5 +62,15 @@ fn clear_bss() {
             }
             current += 1;
         }
+    }
+}
+
+
+use riscv::register::sstatus::{self, SPP};
+#[allow(unused)]
+fn display_sstatus() {
+    match sstatus::read().spp() {
+        SPP::Supervisor => {debug!("current mode: Supervisor");},
+        SPP::User => {debug!("current mode: User");},
     }
 }

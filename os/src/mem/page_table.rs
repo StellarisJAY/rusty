@@ -3,9 +3,12 @@ use super::address::*;
 use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::vec::Vec;
 use alloc::vec;
+#[allow(unused)]
 use crate::config::PAGE_SIZE;
 
+
 const RISCV_PTE_PPN_OFFSET: usize = 10;
+#[allow(unused)]
 const RISCV_SATP_MODE_WIDTH: usize = 4;
 const RISCV_SATP_ASID_WIDTH: usize = 16;
 const RISCV_SATP_MODE_OFFSET: usize = RISCV_PPN_WIDTH + RISCV_SATP_ASID_WIDTH;
@@ -65,7 +68,6 @@ impl PageTableEntry {
     }
 
     pub fn is_valid(&self) -> bool {
-//        self.flags().bits & PTEFlags::V.bits != 0
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
     pub fn is_writable(&self) -> bool {
@@ -76,7 +78,6 @@ impl PageTableEntry {
 impl PageTable {
     pub fn new() -> Self {
         let frame = alloc_frame().unwrap();
-        debug!("new page table root_ppn: {}", frame.ppn.0);
         Self { root_ppn: frame.ppn, frames: vec![frame] }
     }
     pub fn map(&mut self, vpn: VirtPageNumber, ppn: PhysPageNumber, flags: PTEFlags) {
