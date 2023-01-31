@@ -17,7 +17,6 @@ pub enum MapType {
 
 // MemoryArea 一个内存段
 // VPNRange定义了段内存的虚拟页号范围
-#[derive(Clone)]
 pub struct MemoryArea {
     pub vpns: VPNRange,
     mapped_frames: BTreeMap<VirtPageNumber, FrameTracker>,
@@ -41,7 +40,6 @@ bitflags! {
     }
 }
 
-#[derive(Clone)]
 pub struct MemorySet {
     pub page_table: PageTable,
     areas: Vec<MemoryArea>,
@@ -74,20 +72,22 @@ impl MemoryArea {
     // 将数据拷贝到段内存中
     // 从vpn 0开始，将数据分成4KiB的若干个页，通过页表获取vpn对应的物理页，并将数据拷贝到物理页中
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
-        let mut data_pos:usize = 0;
-        let mut current_vpn = self.vpns.start_vpn;
-        let data_len = data.len();
+        let mut start: usize = 0;
+        let mut current_vpn = self.vpns.current;
+        let len = data.len();
         loop {
-            // 获取4KiB的数据切片
-            let src = &data[data_pos..data_pos + PAGE_SIZE];
-            // 通过当前的vpn获取一个物理页号，并获取物理页对应的数据切片
-            let dst = page_table.vpn_to_ppn(current_vpn).unwrap().page_number().as_bytes_array();
+            let src = &data[start..len.min(start + PAGE_SIZE)];
+            let dst = &mut page_table
+                .vpn_to_ppn(current_vpn)
+                .unwrap()
+                .page_number()
+                .as_bytes_array()[..src.len()];
             dst.copy_from_slice(src);
-            data_pos += PAGE_SIZE;
-            if data_pos >= data_len {
+            start += PAGE_SIZE;
+            if start >= len {
                 break;
             }
-            current_vpn.0 += 1;
+            current_vpn.step();
         }
     }
     // 将一个vpn映射到该内存段中
@@ -138,7 +138,7 @@ impl MemorySet {
             satp::write(satp);
             // 刷新TLB，第一个参数是要刷新的虚拟页号，第二个是进程标识符ASID
             // 两个参数都为0，表示刷新所有的TLB
-            asm!("sfence.vma x0, x0");
+            asm!("sfence.vma");
         }
     }
     // 将trampoline的汇编代码地址映射到 地址空间中的固定位置
@@ -159,9 +159,10 @@ impl Iterator for VPNRange {
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == self.end_vpn {
             return None;
+        }else {
+            let result = self.current;
+            self.current.step();
+            return Some(result);
         }
-        let result = self.current;
-        self.current.0 += 1;
-        return Some(result);
     }
 }

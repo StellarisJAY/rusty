@@ -53,6 +53,7 @@ impl MemorySet {
                 VirtAddr::new(MEMORY_END),
                 MapType::Direct, MapPermission::R | MapPermission::W ), None);
         kernel_info!("physical memory mapped");
+        debug!("kernel space mapped, page table: {}", memory_set.page_table.root_ppn.0);
         return memory_set;
     }
 }
