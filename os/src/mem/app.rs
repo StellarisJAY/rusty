@@ -21,13 +21,14 @@ impl MemorySet {
             let ph = elf.program_header(i).unwrap();
             if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
                 // header的起始和结束虚拟地址
-                let start_va: VirtAddr = VirtAddr(ph.virtual_addr() as usize);
-                let end_va: VirtAddr = VirtAddr((ph.virtual_addr() + ph.mem_size()) as usize);
+                let start_va: VirtAddr = VirtAddr::new(ph.virtual_addr() as usize);
+                let end_va: VirtAddr = VirtAddr::new((ph.virtual_addr() + ph.mem_size()) as usize);
                 let mut map_perm = MapPermission::U;
                 let ph_flags = ph.flags();
                 if ph_flags.is_read() { map_perm |= MapPermission::R; }
                 if ph_flags.is_write() { map_perm |= MapPermission::W; }
                 if ph_flags.is_execute() { map_perm |= MapPermission::X; }
+
                 let mem_area = MemoryArea::new(
                     start_va,
                     end_va,

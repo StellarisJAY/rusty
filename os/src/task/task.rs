@@ -16,7 +16,6 @@ pub enum TaskStatus {
 }
 // TaskControlBlock 任务控制块
 // 保存当前任务的状态，以及任务的上下文
-#[derive(Clone)]
 pub struct TaskControlBlock {
     pub status: TaskStatus,
     pub ctx: TaskContext,
@@ -32,16 +31,14 @@ impl TaskControlBlock {
     // 在内核空间映射任务的内核栈
     // 创建新的trap_context并绑定到之前获得的ppn
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
-        debug!("mapping elf data");
         let (memory_set, user_stack_sp, entry_point) = MemorySet::from_elf_data(elf_data);
-        debug!("app elf data mapped to memory_set, root_ppn: {}", memory_set.page_table.root_ppn.0);
         // 将该任务固定的TRAP_CONTEXT虚拟地址转换为确定的物理页号
-        let trap_ctx_ppn = memory_set.page_table.vpn_to_ppn(VirtAddr(TRAP_CONTEXT).floor()).unwrap().page_number();
-        let (kernel_stack_top, kernel_stack_bottom) = kernel_stack_position(app_id);
+        let trap_ctx_ppn = memory_set.page_table.vpn_to_ppn(VirtAddr::new(TRAP_CONTEXT).floor()).unwrap().page_number();
+        let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(app_id);
         // 内核空间中创建该任务的内核栈区域
         let mut kernel_space = KERNEL_SPACE.exclusive_borrow();
-        kernel_space.push(MemoryArea::new(VirtAddr(kernel_stack_bottom),
-            VirtAddr(kernel_stack_top),
+        kernel_space.push(MemoryArea::new(VirtAddr::new(kernel_stack_bottom),
+            VirtAddr::new(kernel_stack_top),
             MapType::Framed,
             MapPermission::R | MapPermission::W),
         None);
@@ -60,7 +57,7 @@ impl TaskControlBlock {
         kernel_space.page_table.satp_value(),
         trap_handler as usize);
         drop(kernel_space);
-        debug!("application_{} loaded, memory set created", app_id);
+        debug!("application_{} loaded, page table ppn: {}", app_id, tcb.memory_set.page_table.root_ppn.0);
         return tcb;
     }
     pub fn get_trap_context(&self) -> &'static mut TrapContext {
