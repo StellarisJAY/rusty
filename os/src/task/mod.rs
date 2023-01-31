@@ -28,9 +28,7 @@ struct TaskManagerInstance {
 
 lazy_static! {
     pub static ref TASK_MANAGER: TaskManager = {
-        debug!("loading apps");
         let num_apps = get_num_apps();
-        debug!("loading apps, count: {}", num_apps);
         // 创建空的task数组
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
         for app_id in 0..num_apps {
@@ -38,6 +36,7 @@ lazy_static! {
             tcb.status = TaskStatus::Ready;
             tasks.push(tcb);
         }
+        kernel_info!("all apps loaded and mapped");
         let instance = unsafe {
             UPSafeCell::new(TaskManagerInstance{
                     task_control_blocks: tasks,
@@ -84,8 +83,7 @@ impl TaskManager {
 
     fn current_task_satp(&self) -> usize {
         let instance = self.instance.exclusive_borrow();
-        let tcb = instance.task_control_blocks[instance.current_task].clone();
-        let satp = tcb.memory_set.page_table.satp_value();
+        let satp = instance.task_control_blocks[instance.current_task].memory_set.page_table.satp_value();
         drop(instance);
         return satp;
     }
@@ -112,9 +110,9 @@ impl TaskManager {
 
     fn find_next_task(&self) -> Option<usize> {
         let manager = self.instance.exclusive_borrow();
-        let tasks = manager.task_control_blocks.clone();
-        for id in 0..tasks.len() {
-            if tasks[id].status == TaskStatus::Ready {
+        let task_count = manager.task_control_blocks.len();
+        for id in 0..task_count {
+            if manager.task_control_blocks[id].status== TaskStatus::Ready {
                 drop(manager);
                 return Some(id);
             }
