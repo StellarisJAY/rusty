@@ -1,4 +1,4 @@
-use super::address::{VirtPageNumber, VirtAddr, PhysPageNumber, PhysAddr};
+use super::address::{VirtPageNumber, VirtAddr, PhysPageNumber, PhysAddr, VPNRange};
 use crate::config::PAGE_SIZE;
 use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::collections::BTreeMap;
@@ -24,12 +24,6 @@ pub struct MemoryArea {
     map_perm: MapPermission,
 }
 
-#[derive(Clone, Copy)]
-pub struct VPNRange {
-    pub start_vpn: VirtPageNumber,
-    pub end_vpn: VirtPageNumber,
-    current: VirtPageNumber,
-}
 
 bitflags! {
     pub struct MapPermission: u8 {
@@ -45,11 +39,6 @@ pub struct MemorySet {
     areas: Vec<MemoryArea>,
 }
 
-impl VPNRange {
-    fn new(start: VirtPageNumber, end: VirtPageNumber)->Self {
-        return Self { start_vpn: start, end_vpn: end, current: start };
-    }
-}
 
 impl MemoryArea {
     pub fn new(start_va: VirtAddr, end_va: VirtAddr, map_type: MapType, perm: MapPermission) -> Self {
@@ -73,7 +62,7 @@ impl MemoryArea {
     // 从vpn 0开始，将数据分成4KiB的若干个页，通过页表获取vpn对应的物理页，并将数据拷贝到物理页中
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         let mut start: usize = 0;
-        let mut current_vpn = self.vpns.current;
+        let mut current_vpn = self.vpns.get_start();
         let len = data.len();
         loop {
             let src = &data[start..len.min(start + PAGE_SIZE)];
@@ -149,20 +138,5 @@ impl MemorySet {
         // strampoline为汇编代码的物理地址，TRAMPOLINE是虚拟地址
         // 将vpn与ppn在当前的地址空间中绑定
         self.page_table.map(VirtAddr(TRAMPOLINE).floor(), PhysAddr(strampoline as usize).floor(), PTEFlags::R | PTEFlags::X);
-    }
-}
-
-
-
-impl Iterator for VPNRange {
-    type Item = VirtPageNumber;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current == self.end_vpn {
-            return None;
-        }else {
-            let result = self.current;
-            self.current.step();
-            return Some(result);
-        }
     }
 }

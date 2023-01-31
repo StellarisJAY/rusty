@@ -40,7 +40,7 @@ pub fn init_frame_allocator() {
     let mut allocator = FRAME_ALLOCATOR.exclusive_borrow();
     let (start_addr, end_addr) = (PhysAddr::new(ekernel as usize), PhysAddr::new(MEMORY_END));
     // 内核同样需要占用物理内存页，所以从内核结束地址ekernel计算可分配内存的初始页号
-    allocator.init(start_addr.ceil(),  end_addr.ceil());
+    allocator.init(start_addr.ceil(),  end_addr.floor());
     kernel_info!("physical memory frame allocator space: [{:#x}, {:#x}), size: {}, pages: {}", start_addr.0, end_addr.0, end_addr.0 - start_addr.0, allocator.end - allocator.current);
     drop(allocator);
 }
