@@ -1,16 +1,16 @@
-run:build
+rust-sbi-run:build
 	@qemu-system-riscv64 \
 	-machine virt \
 	-nographic \
 	-bios ../bootloader/rustsbi-qemu.bin \
 	-device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000
-open_sbi_run:build
+run:build
 	@qemu-system-riscv64 \
 	--machine virt \
 	--nographic \
 	--bios default \
 	--kernel target/riscv64gc-unknown-none-elf/release/os.bin
-open_sbi_debug:build
+rust_sbi_debug:build
 	@qemu-system-riscv64 \
 	-machine virt \
 	-nographic \
@@ -24,7 +24,7 @@ debug:build
 	@qemu-system-riscv64 \
         -machine virt \
         -nographic \
-        -bios ../bootloader/rustsbi-qemu.bin \
-        -device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 -s -S
+        -bios default \
+	-kernel target/riscv64gc-unknown-none-elf/release/os.bin -s -S
 gdb:
 	riscv64-unknown-elf-gdb -ex 'file target/riscv64gc-unknown-none-elf/release/os' -ex 'set arch riscv:rv64' -ex 'target remote localhost:1234'
