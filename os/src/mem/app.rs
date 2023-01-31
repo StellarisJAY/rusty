@@ -35,7 +35,7 @@ impl MemorySet {
                     MapType::Framed,
                     map_perm,
                 );
-                max_end_vpn = mem_area.vpns.end_vpn;
+                max_end_vpn = mem_area.vpns.get_end();
                 // memory_set中保存该内存段
                 memory_set.push(
                     mem_area,

@@ -34,11 +34,6 @@ impl PhysAddr {
     pub fn floor(&self) -> PhysPageNumber { PhysPageNumber(self.0 / PAGE_SIZE) }
     // 物理地址向上取整获得物理页号
     pub fn ceil(&self) -> PhysPageNumber { PhysPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
-
-    // 物理页号转换成物理页的基地址
-    pub fn from_ppn(ppn: PhysPageNumber) -> Self {
-        return Self((ppn.0 & RISCV_PPN_MASK) << PAGE_SIZE_BITS)
-    }
 }
 
 
@@ -55,7 +50,7 @@ impl VirtAddr {
     pub fn ceil(&self) -> VirtPageNumber { VirtPageNumber((self.0 + PAGE_SIZE - 1) / PAGE_SIZE) }
     // 从虚拟页号获取虚拟地址基地址，RISC-V的虚拟页号只有39位
     pub fn from_vpn(vpn: VirtPageNumber) -> Self {
-        return Self((vpn.0 & RISCV_VPN_MASK) << PAGE_SIZE_BITS);
+        return Self(vpn.0  << PAGE_SIZE_BITS);
     }
 }
 
@@ -70,11 +65,11 @@ impl PhysPageNumber {
     // 一个物理页（4KiB）可以容纳 512个页表项（8 字节）
     pub fn as_pte_array(&self) -> &'static mut [PageTableEntry] {
         let ptr = self.get_base_address() as *mut PageTableEntry;
-        let array = unsafe{core::slice::from_raw_parts_mut(ptr, PAGE_SIZE / 8)};
+        let array = unsafe{core::slice::from_raw_parts_mut(ptr, 512)};
         return array;
     }
     pub fn get_base_address(&self) -> usize {
-        let base_addr = (self.0 & RISCV_PPN_MASK) << PAGE_SIZE_BITS;
+        let base_addr = self.0 << PAGE_SIZE_BITS;
         return base_addr;
     }
 }
@@ -84,15 +79,94 @@ impl VirtPageNumber {
     // 每个虚拟页号为9位，可以映射512个物理页
     pub fn level_indexes(&self) -> [usize; 3] {
         let mut vpn = self.0;
-        let mut idxs: [usize; 3] = [0; 3];
-        // 低位是更高级的页表，所以需要rev
+        let mut idx = [0usize; 3];
         for i in (0..3).rev() {
-            idxs[i] = vpn & 0x1ff;
-            vpn = vpn >> 9;
+            idx[i] = vpn & 511;
+            vpn >>= 9;
         }
-        return idxs;
+        idx
     }
     pub fn step(&mut self) {
         self.0 += 1;
     }
 }
+
+
+
+pub trait StepByOne {
+    fn step(&mut self);
+}
+impl StepByOne for VirtPageNumber {
+    fn step(&mut self) {
+        self.0 += 1;
+    }
+}
+
+
+#[derive(Copy, Clone)]
+/// a simple range structure for type T
+pub struct SimpleRange<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    l: T,
+    r: T,
+}
+impl<T> SimpleRange<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    pub fn new(start: T, end: T) -> Self {
+        Self { l: start, r: end }
+    }
+    pub fn get_start(&self) -> T {
+        self.l
+    }
+    pub fn get_end(&self) -> T {
+        self.r
+    }
+}
+impl<T> IntoIterator for SimpleRange<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    type Item = T;
+    type IntoIter = SimpleRangeIterator<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        SimpleRangeIterator::new(self.l, self.r)
+    }
+}
+/// iterator for the simple range structure
+pub struct SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    current: T,
+    end: T,
+}
+impl<T> SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    pub fn new(l: T, r: T) -> Self {
+        Self { current: l, end: r }
+    }
+}
+impl<T> Iterator for SimpleRangeIterator<T>
+where
+    T: StepByOne + Copy + PartialEq + PartialOrd,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current == self.end {
+            None
+        } else {
+            let t = self.current;
+            self.current.step();
+            Some(t)
+        }
+    }
+}
+
+/// a simple range structure for virtual page number
+pub type VPNRange = SimpleRange<VirtPageNumber>;
