@@ -74,6 +74,16 @@ impl PhysPageNumber {
     }
 }
 
+impl From<VirtAddr> for usize {
+    fn from(value: VirtAddr) -> Self {
+        if value.0 >= 1<<(RISCV_VA_WIDTH-1) {
+            return value.0 | (!((1<<(RISCV_VA_WIDTH - 1))-1));
+        }else {
+            return value.0;
+        }
+    }
+}
+
 impl VirtPageNumber {
     // 获取三级页表的三个虚拟页号
     // 每个虚拟页号为9位，可以映射512个物理页
