@@ -10,11 +10,11 @@ run:build
 	--nographic \
 	--bios default \
 	--kernel target/riscv64gc-unknown-none-elf/release/os.bin
-rust_sbi_debug:build
+rust-sbi-debug:build
 	@qemu-system-riscv64 \
 	-machine virt \
 	-nographic \
-	-bios default \
+	-bios ../bootloader/rustsbi-qemu.bin \
 	-device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000 -s -S
 build: 
 	@cargo build --release

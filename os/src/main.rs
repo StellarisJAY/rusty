@@ -36,7 +36,6 @@ pub fn rust_main() {
     banner::print_banner();
     // 清空bss段
     clear_bss();
-    display_sstatus();
     mem::init();
     trap::enable_stimer();
     timer::set_next_time_trigger();
@@ -59,15 +58,5 @@ fn clear_bss() {
             }
             current += 1;
         }
-    }
-}
-
-
-use riscv::register::sstatus::{self, SPP};
-#[allow(unused)]
-fn display_sstatus() {
-    match sstatus::read().spp() {
-        SPP::Supervisor => {debug!("current mode: Supervisor");},
-        SPP::User => {debug!("current mode: User");},
     }
 }

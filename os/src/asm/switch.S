@@ -12,7 +12,7 @@
 # sp寄存器指向内核空间的栈
 __switch:
     # a0: current_ctx, a1: next_ctx
-    # 保存sp寄存器到current_ctx
+    # 保存当前任务的内核地址空间的栈地址
     sd sp, 8(a0)
     # 保存ra寄存器
     sd ra, 0(a0)
@@ -30,7 +30,8 @@ __switch:
         LOAD_SN %n
         .set n, n + 1
     .endr
-    # 恢复下一个任务的内核栈的sp
+    # 加载下一个任务的内核地址空间栈地址
     ld sp, 8(a1)
     # __switch流程结束，ret会返回到ra寄存器的地址，即跳到trap_return函数
+    # trap_return地址是内核空间的虚地址，此时的satp指向内核pageTble，MMU自动完成地址转换
     ret

@@ -128,7 +128,6 @@ impl TaskManager {
         let mut _unused = TaskContext::new_empty_ctx();
         let first_task_ctx_ptr = &instance.task_control_blocks[0].ctx as *const TaskContext;
         drop(instance);
-
         unsafe {
             __switch(&mut _unused as *mut TaskContext, first_task_ctx_ptr);
         }
@@ -153,7 +152,6 @@ impl TaskManager {
             }
             let next_ctx_ptr = & manager.task_control_blocks[next_id].ctx as *const TaskContext;
             drop(manager);
-            debug!("running next task, app_{}", next_id);
             // switch会将下一个任务的sp、ra恢复，并通过restore回到U状态
             unsafe {
                 __switch(cur_ctx_ptr, next_ctx_ptr);
