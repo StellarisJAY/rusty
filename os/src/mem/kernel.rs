@@ -31,7 +31,7 @@ impl MemorySet {
                 VirtAddr::new(stext as usize),
                 VirtAddr::new(etext as usize),
                 MapType::Direct,MapPermission::R | MapPermission::X), None);
-        kernel_info!(".text memory mapped, mem range: [{:#x}, {:#x})", stext as usize, etext as usize);
+        kernel_info!(".text memory mapped, phys addr: [{:#x}, {:#x})",stext as usize, etext as usize,);
         memory_set.push(MemoryArea::new(
                 VirtAddr::new(srodata as usize),
                 VirtAddr::new(erodata as usize),
@@ -52,8 +52,7 @@ impl MemorySet {
                 VirtAddr::new(ekernel as usize),
                 VirtAddr::new(MEMORY_END),
                 MapType::Direct, MapPermission::R | MapPermission::W ), None);
-        kernel_info!("physical memory mapped");
-        debug!("kernel space mapped, page table: {}", memory_set.page_table.root_ppn.0);
+        kernel_info!("physical memory mapped, mem range: [{:#x},{:#x})", ekernel as usize, MEMORY_END);
         return memory_set;
     }
 }
@@ -68,17 +67,17 @@ pub fn remap_test() {
     let mid_data: VirtAddr = VirtAddr((sdata as usize + edata as usize) / 2);
     println!("1");
     assert_eq!(
-            kernel_space.page_table.vpn_to_ppn(mid_text.floor()).unwrap().is_writable(),
+            kernel_space.page_table.translate(mid_text.floor()).unwrap().is_writable(),
         false
     );
     println!("2");
     assert_eq!(
-            kernel_space.page_table.vpn_to_ppn(mid_rodata.floor()).unwrap().is_writable(),
+            kernel_space.page_table.translate(mid_rodata.floor()).unwrap().is_writable(),
         false,
     );
     println!("3");
     assert_eq!(
-            kernel_space.page_table.vpn_to_ppn(mid_data.floor()).unwrap().is_writable(),
+            kernel_space.page_table.translate(mid_data.floor()).unwrap().is_writable(),
         false,
     );
     println!("remap_test passed!");

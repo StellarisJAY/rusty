@@ -3,7 +3,7 @@ use crate::config::PAGE_SIZE;
 use super::frame_allocator::{FrameTracker, alloc_frame};
 use alloc::collections::BTreeMap;
 use bitflags::bitflags;
-use super::page_table::{PageTable, PTEFlags};
+use super::page_table::{PageTable, PTEFlags, PageTableEntry};
 use alloc::vec::Vec;
 use riscv::register::satp;
 use core::arch::asm;
@@ -67,7 +67,7 @@ impl MemoryArea {
         loop {
             let src = &data[start..len.min(start + PAGE_SIZE)];
             let dst = &mut page_table
-                .vpn_to_ppn(current_vpn)
+                .translate(current_vpn)
                 .unwrap()
                 .page_number()
                 .as_bytes_array()[..src.len()];
@@ -123,10 +123,9 @@ impl MemorySet {
     }
     pub fn reset_satp(&self) {
         let satp = self.page_table.satp_value();
-        unsafe {
-            satp::write(satp);
-            // 刷新TLB，第一个参数是要刷新的虚拟页号，第二个是进程标识符ASID
-            // 两个参数都为0，表示刷新所有的TLB
+        satp::write(satp);
+        // 刷新TLB
+        unsafe{
             asm!("sfence.vma");
         }
     }
@@ -137,6 +136,10 @@ impl MemorySet {
         }
         // strampoline为汇编代码的物理地址，TRAMPOLINE是虚拟地址
         // 将vpn与ppn在当前的地址空间中绑定
-        self.page_table.map(VirtAddr(TRAMPOLINE).floor(), PhysAddr(strampoline as usize).floor(), PTEFlags::R | PTEFlags::X);
+        self.page_table.map(VirtAddr::new(TRAMPOLINE).floor(), PhysAddr::new(strampoline as usize).floor(), PTEFlags::R | PTEFlags::X);
+    }
+
+    pub fn translate(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
     }
 }
