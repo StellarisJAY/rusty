@@ -38,9 +38,6 @@ pub fn rust_main() {
     clear_bss();
     display_sstatus();
     mem::init();
-    unsafe {loader::load_apps();}
-    // 初始化陷入
-    unsafe {trap::init();}
     trap::enable_stimer();
     timer::set_next_time_trigger();
     task::run_first_task();
