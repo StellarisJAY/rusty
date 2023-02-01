@@ -43,10 +43,10 @@ SECTIONS
 
     . = ALIGN(4K);
     edata = .;
+    sbss = .;
     /* bss段 bss段包括可置零的未初始化的全局变量 */
     .bss : {
         *(.bss.stack)
-        sbss = .;
         *(.bss .bss.*)
         *(.sbss .sbss.*)
     }
