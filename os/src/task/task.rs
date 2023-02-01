@@ -33,7 +33,7 @@ impl TaskControlBlock {
     pub fn new(elf_data: &[u8], app_id: usize) -> Self {
         let (memory_set, user_stack_sp, entry_point) = MemorySet::from_elf_data(elf_data);
         // 将该任务固定的TRAP_CONTEXT虚拟地址转换为确定的物理页号
-        let trap_ctx_ppn = memory_set.page_table.vpn_to_ppn(VirtAddr::new(TRAP_CONTEXT).floor()).unwrap().page_number();
+        let trap_ctx_ppn = memory_set.page_table.translate(VirtAddr::new(TRAP_CONTEXT).floor()).unwrap().page_number();
         let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(app_id);
         // 内核空间中创建该任务的内核栈区域
         let mut kernel_space = KERNEL_SPACE.exclusive_borrow();

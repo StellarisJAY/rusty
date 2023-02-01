@@ -37,7 +37,6 @@ pub struct PageTableEntry {
 // PageTable，三级页表根节点
 // 每级页表用一个物理页保存，所以根节点需要一个root_ppn
 // 一个物理页4KiB，一个页表项8B，所以一级页表可以容纳512个页表项
-#[derive(Clone)]
 pub struct PageTable {
     pub root_ppn: PhysPageNumber,
     frames: Vec<FrameTracker>,
@@ -73,6 +72,12 @@ impl PageTableEntry {
     pub fn is_writable(&self) -> bool {
         (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
+    pub fn is_readable(&self) -> bool {
+        (self.flags() & PTEFlags::R) != PTEFlags::empty()
+    }
+    pub fn is_executable(&self) -> bool {
+        (self.flags() & PTEFlags::X) != PTEFlags::empty()
+    }
 }
 
 impl PageTable {
@@ -83,7 +88,7 @@ impl PageTable {
     pub fn map(&mut self, vpn: VirtPageNumber, ppn: PhysPageNumber, flags: PTEFlags) {
         let pte = self.find_or_create_pte(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn: {} already mapped before mapping, pte ppn: {}, pt ppn: {}", vpn.0, pte.page_number().0, self.root_ppn.0);
-        *pte = PageTableEntry::new(ppn, PTEFlags::V);
+        *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
     pub fn unmap(&mut self, vpn: VirtPageNumber) {
         let pte = self.find_pte(vpn).unwrap();
@@ -137,15 +142,15 @@ impl PageTable {
             frames: Vec::new(),
         }
     }
-    pub fn vpn_to_ppn(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
+    pub fn translate(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
         self.find_pte(vpn)
-            .map(|pte| {pte.clone()})
+            .map(|pte| {*pte})
     }
 
     // 将当前页表转换成satp寄存器值
     // satp寄存器：8位 + 44位页表所在的ppn
     pub fn satp_value(&self) -> usize {
-        return (8 << RISCV_SATP_MODE_OFFSET) | (self.root_ppn.0 & RISCV_PPN_MASK);
+        return (8 << RISCV_SATP_MODE_OFFSET) | (self.root_ppn.0);
     }
 }
 
@@ -159,17 +164,17 @@ pub fn translated_byte_buffer(
     let end = start + len;
     let mut v = Vec::new();
     while start < end {
-        let start_va = VirtAddr(start);
+        let start_va = VirtAddr::new(start);
         let mut vpn = start_va.floor();
         let ppn = page_table
-            .vpn_to_ppn(vpn)
+            .translate(vpn)
             .unwrap()
             .page_number();
         vpn.step();
         let mut end_va = VirtAddr::from_vpn(vpn);
         end_va = end_va.min(VirtAddr::new(end));
         v.push(&ppn.as_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
-        start = end_va.0;
+        start = end_va.into();
     }
     return v;
 }
