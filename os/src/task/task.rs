@@ -47,13 +47,13 @@ impl TaskControlBlock {
             memory_set: memory_set,
             trap_ctx_ppn: trap_ctx_ppn,
             base_size: user_stack_sp,
-            ctx: TaskContext::trap_return_context(kernel_stack_bottom),
+            ctx: TaskContext::trap_return_context(kernel_stack_top),
         };
         let trap_ctx = tcb.get_trap_context();
         // 创建新的context
         *trap_ctx = TrapContext::task_init_context(entry_point,
         user_stack_sp,
-        kernel_stack_bottom,
+        kernel_stack_top,
         kernel_space.page_table.satp_value(),
         trap_handler as usize);
         drop(kernel_space);
