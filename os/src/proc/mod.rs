@@ -112,7 +112,7 @@ pub fn run_processes() {
 
 // 时间片中断 或 进程主动yield触发，将Processor切换回idle
 pub fn schedule(switched_ctx_ptr: *mut ProcessContext) {
-    let processor = PROCESSOR.exclusive_borrow();
+    let mut processor = PROCESSOR.exclusive_borrow();
     let idle_ctx_ptr = processor.idle_context_ptr();
     drop(processor);
     unsafe {
@@ -143,7 +143,7 @@ impl Processor {
     pub fn current(&self) -> Option<Arc<ProcessControlBlock>> {
         return self.current_process.as_ref().map(|proc| {Arc::clone(proc)});
     }
-    fn idle_context_ptr(&self) -> *mut ProcessContext {
+    fn idle_context_ptr(&mut self) -> *mut ProcessContext {
         let ctx = &mut self.idle_context;
         return ctx as *mut _;
     }
