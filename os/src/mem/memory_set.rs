@@ -46,6 +46,13 @@ impl MemoryArea {
         let end_vpn = end_va.ceil();
         return Self { vpns: VPNRange::new(start_vpn, end_vpn), mapped_frames: BTreeMap::new(), map_type: map_type, map_perm: perm };
     }
+
+    pub fn from_existing(other: &MemoryArea) -> Self {
+        return Self{vpns: VPNRange::new(other.vpns.get_start(), other.vpns.get_end()), mapped_frames: BTreeMap::new(),
+            map_type: other.map_type.clone(),
+            map_perm: other.map_perm};
+    }
+
     // 将该段与页表映射
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpns {
@@ -113,6 +120,24 @@ impl MemorySet {
     pub fn new_empty() -> Self {
         return Self { page_table: PageTable::new(), areas: Vec::new() };
     }
+    // 从已存在的MemorySet创建新的MemorySet，用于fork进程
+    pub fn from_existing(other: &Self) -> Self {
+        let mut mem_set = Self::new_empty();
+        mem_set.map_trampoline();
+        for area in other.areas.iter() {
+            let new_area = MemoryArea::from_existing(&area);
+            mem_set.push(new_area, None);
+            // 复制数据到新的数据集
+            // TODO 实现CopyOnWrite机制
+            for vpn in area.vpns {
+                let src_ppn = other.translate(vpn).unwrap().page_number();
+                let dst_ppn = mem_set.translate(vpn).unwrap().page_number();
+                dst_ppn.as_bytes_array().copy_from_slice(src_ppn.as_bytes_array());
+            }
+        }
+        return mem_set;
+    }
+
     // push一个内存段到内存合集中
     pub fn push(&mut self, mut area: MemoryArea, data: Option<&[u8]>) {
         area.map(&mut self.page_table);
