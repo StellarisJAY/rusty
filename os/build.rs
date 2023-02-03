@@ -32,12 +32,19 @@ _num_app:
     .quad {}"#,
         apps.len()
     )?;
-
+    // num_app
     for i in 0..apps.len() {
         writeln!(f, r#"    .quad app_{}_start"#, i)?;
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
-
+    // app_names
+    writeln!(f, r#"
+.global _app_names
+_app_names:"#)?;
+    for app in apps.iter() {
+        writeln!(f, r#"    .string "{}""#, app)?;
+    }
+    // inc_bin apps
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
         writeln!(
