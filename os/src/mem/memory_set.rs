@@ -142,4 +142,27 @@ impl MemorySet {
     pub fn translate(&self, vpn: VirtPageNumber) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
+
+    // 删除集合中的一个内存段
+    pub fn remove_memory_area(&mut self, start_vpn: VirtPageNumber) {
+        let mut found: bool = false;
+        let mut idx: usize = 0;
+        // 找到从指定vpn开始的内存段
+        for (i, area) in self.areas.iter().enumerate() {
+            if area.vpns.get_start().0 == start_vpn.0 {
+                idx = i;
+                found = true;
+                break;
+            }
+        }
+        if found {
+            let index = idx as usize;
+            // area的所有权从vec移除，函数结束后生命周期结束被回收
+            // 进而触发area中的所有物理页被回收
+            let mut area = self.areas.remove(index);
+            area.unmap(&mut self.page_table);
+        }else {
+            panic!("unmap non-exist memory area, memory_set: {}, start vpn: {}", self.page_table.root_ppn.0, start_vpn.0);
+        }
+    }
 }
