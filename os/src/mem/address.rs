@@ -68,9 +68,16 @@ impl PhysPageNumber {
         let array = unsafe{core::slice::from_raw_parts_mut(ptr, 512)};
         return array;
     }
+    // 物理页基地址
     pub fn get_base_address(&self) -> usize {
         let base_addr = self.0 << PAGE_SIZE_BITS;
         return base_addr;
+    }
+    
+    // 物理页转换物理地址
+    pub fn as_phys_addr(&self, page_offset: usize) -> PhysAddr {
+        assert!(page_offset >= PAGE_SIZE, "page offset overflow");
+        return PhysAddr::new(self.get_base_address() & page_offset);
     }
 }
 

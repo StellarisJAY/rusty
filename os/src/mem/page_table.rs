@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 use alloc::vec;
 #[allow(unused)]
 use crate::config::PAGE_SIZE;
+use alloc::string::String;
 
 
 const RISCV_PTE_PPN_OFFSET: usize = 10;
@@ -152,6 +153,15 @@ impl PageTable {
     pub fn satp_value(&self) -> usize {
         return (8 << RISCV_SATP_MODE_OFFSET) | (self.root_ppn.0);
     }
+    // 虚拟地址到物理地址的转换
+    pub fn translate_virt_addr(&self, va: VirtAddr) -> Option<usize> {
+        let page_offset = va.page_offset();
+        let vpn = va.floor();
+        return self.translate(vpn)
+        .map(|pte| {
+            pte.page_number().as_phys_addr(page_offset).0
+        });
+    }
 }
 
 pub fn translated_byte_buffer(
@@ -177,4 +187,24 @@ pub fn translated_byte_buffer(
         start = end_va.into();
     }
     return v;
+}
+
+// 从指定地址空间转换指针为String
+pub fn translate_string(satp: usize, ptr: *const u8) -> String {
+    let page_table = PageTable::from_satp_register(satp);
+    let mut str = String::new();
+    let mut va: usize = ptr as usize;
+    loop {
+        let phys_addr = page_table.translate_virt_addr(VirtAddr::new(va)).unwrap();
+        unsafe {
+            let ch: u8 = *(phys_addr as *const u8);
+            if ch != 0 {
+                str.push(ch as char);
+                va += 1;
+            }else {
+                break;
+            }
+        }
+    }
+    return str;
 }
