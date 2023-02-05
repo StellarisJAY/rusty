@@ -4,9 +4,9 @@ use riscv::register::utvec::TrapMode;
 use riscv::register::scause::Trap;
 use riscv::register::scause::{Exception, Interrupt};
 use crate::syscall::syscall;
-use crate::task::{run_next_task, exit_current_task, suspend_current_task, current_task_satp, current_task_trap_ctx};
 use crate::timer;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+use crate::proc::{suspend_current_and_run_next, current_proc_trap_context, exit_current_and_run_next, current_proc_satp};
 
 // 导入Trap上下文切换的汇编
 global_asm!(include_str!("../asm/trap.S"));
@@ -43,7 +43,7 @@ pub fn trap_from_kernel() -> ! {
 pub fn trap_return() -> ! {
     set_user_mode_trap_entry();
     let trap_cx_ptr = TRAP_CONTEXT;
-    let user_satp = current_task_satp();
+    let user_satp = current_proc_satp();
     extern "C" {
         fn __alltraps();
         fn __restore();
@@ -66,42 +66,48 @@ pub fn trap_return() -> ! {
 #[no_mangle]
 pub fn trap_handler() {
     set_kernel_trap_entry();
-    let ctx = current_task_trap_ctx();
+
     // 从scause和stval读取trap原因和trap信息
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
         // 捕获到U传给S的ecall，转到syscall处理，在syscall模块对不合法的syscall过滤
         Trap::Exception(Exception::UserEnvCall) => {
+            let mut ctx = current_proc_trap_context();
             // trap结束后的指令为trap指令之后的一条指令
             // 每条指令大小为4字节，所以sepc寄存器 + 4
             ctx.sepc += 4;
             // 完成系统调用，将trap之前的上下文中的x17,x10,x11,x12传入ecall
-            // ecall返回值传给x10
-            ctx.x[10] = syscall(ctx.x[17], [ctx.x[10], ctx.x[11], ctx.x[12]]) as usize;
+            let result = syscall(ctx.x[17], [ctx.x[10], ctx.x[11], ctx.x[12]]) as usize;
+            ctx = current_proc_trap_context();
+            ctx.x[10] = result;
         },
         // 时钟中断，任务时间片结束
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             // 重置时钟中断
             timer::set_next_time_trigger();
             // 切换到下一个任务
-            suspend_current_task();
-            run_next_task();
+            suspend_current_and_run_next();
         },
-        Trap::Exception(Exception::StoreFault | Exception::StorePageFault) => {
-            error!("[kernel] Page fault, kernel kills application");
-            exit_current_task();
-            run_next_task();
-        },
-        Trap::Exception(Exception::InstructionFault) => {
-            error!("[kernel] Instruction Fault: {:#x}", stval);
-            exit_current_task();
-            run_next_task();
+        Trap::Exception(Exception::StoreFault) |
+        Trap::Exception(Exception::StorePageFault) |
+        Trap::Exception(Exception::InstructionFault) |
+        Trap::Exception(Exception::InstructionPageFault) |
+        Trap::Exception(Exception::LoadFault) |
+        Trap::Exception(Exception::LoadPageFault) => {
+            println!(
+                "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
+                scause.cause(),
+                stval,
+                current_proc_trap_context().sepc,
+            );
+            // page fault 退出，返回-2
+            exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            error!("[kernel] Illegal instruction, kernel kills application");
-            exit_current_task();
-            run_next_task();
+            println!("[kernel] IllegalInstruction in application, core dumped.");
+            // 非法指令退出，返回-3
+            exit_current_and_run_next(-3);
         }
         _ => {
             panic!("unsupported trap, cause: {:?}, stval: {:#x}", scause.cause(), stval);

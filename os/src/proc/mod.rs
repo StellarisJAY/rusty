@@ -56,6 +56,31 @@ pub fn suspend_current_and_run_next() {
     schedule(cur_ctx_ptr);
 }
 
+// 进程退出，变成僵尸进程
+pub fn exit_current_and_run_next(exit_code: i32) {
+    let current = take_current_process().unwrap();
+    let inner = current.exclusive_borrow_inner();
+    inner.status = ProcessStatus::Zombie;
+    inner.exit_code = exit_code;
+
+    // 将该进程的子进程交给INIT_PROC
+    let init_proc_inner = INIT_PROC.exclusive_borrow_inner();
+    for child in inner.children.iter() {
+        init_proc_inner.children.push(child.clone());
+        child.exclusive_borrow_inner().parent = Some(Arc::downgrade(&INIT_PROC));
+    }
+    drop(init_proc_inner);
+    inner.children.clear();
+    // 回收memory资源
+    inner.memory_set.recycle_memory_set();
+    // 回收PCB
+    drop(inner);
+    drop(current);
+    // 调度传入空上下文，使处理器回到idle状态
+    let mut _empty_ctx = ProcessContext::new_empty_ctx();
+    schedule(&mut _empty_ctx as *mut _);
+}
+
 // 向进程管理器提交一个新的进程
 pub fn add_process(pcb: Arc<ProcessControlBlock>) {
     PROC_MANAGER.exclusive_borrow().push(pcb);
