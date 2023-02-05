@@ -1,6 +1,8 @@
 use core::fmt::{self, Write};
-use crate::sys_write;
+use crate::{sys_write, sys_read};
 const STDOUT:usize = 1;
+const STDIN: usize = 0;
+
 struct Stdout;
 // implement Write trait for Stdout
 impl Write for Stdout {
@@ -11,6 +13,12 @@ impl Write for Stdout {
         sys_write(STDOUT, s.as_bytes());
         return Ok(());
     }
+}
+
+pub fn get_char() -> u8 {
+    let mut buffer = [0u8; 1];
+    sys_read(STDIN, &mut buffer);
+    return buffer[0];
 }
 
 pub fn print(args: fmt::Arguments) {
