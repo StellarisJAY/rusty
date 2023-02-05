@@ -44,3 +44,7 @@ pub fn shutdown() -> ! {
 pub fn set_timer(timer: usize){
     call_sbi(SBI_SET_TIMER, timer, 0, 0);
 }
+
+pub fn console_get_char() -> usize {
+    return call_sbi(SBI_CONSOLE_GETCHAR, 0, 0, 0);
+}
