@@ -168,7 +168,7 @@ pub fn translated_byte_buffer(
         satp: usize,
         ptr: *const u8,
         len: usize
-) -> Vec<&'static [u8]> {
+) -> Vec<&'static mut[u8]> {
     let page_table = PageTable::from_satp_register(satp);
     let mut start = ptr as usize;
     let end = start + len;
@@ -207,4 +207,15 @@ pub fn translate_string(satp: usize, ptr: *const u8) -> String {
         }
     }
     return str;
+}
+
+// 将指针的虚拟地址转换到对应地址空间的物理地址
+pub fn translate_ptr<T>(satp: usize, ptr: *mut T) -> &'static mut T
+where T: Sized{
+    unsafe {
+        let page_table = PageTable::from_satp_register(satp);
+        let addr = page_table.translate_virt_addr(VirtAddr::new(ptr as usize)).unwrap();
+        let ptr = addr as *mut T;
+        return ptr.as_mut().unwrap();
+    }
 }
