@@ -16,7 +16,7 @@ use super::stack::{kernel_stack_position};
 use crate::trap::trap_handler;
 use crate::mem::kernel::KERNEL_SPACE;
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,PartialEq, Eq)]
 pub enum ProcessStatus {
     New,
     Ready,
