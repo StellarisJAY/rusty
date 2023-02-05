@@ -190,4 +190,10 @@ impl MemorySet {
             panic!("unmap non-exist memory area, memory_set: {}, start vpn: {}", self.page_table.root_ppn.0, start_vpn.0);
         }
     }
+    
+    
+    pub fn recycle_memory_set(&mut self) {
+        // 释放areas的所有权，导致MemoryArea和area中的Frame自动回收
+        self.areas.clear();
+    }
 }
