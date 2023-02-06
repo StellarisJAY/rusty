@@ -76,8 +76,8 @@ impl PhysPageNumber {
     
     // 物理页转换物理地址
     pub fn as_phys_addr(&self, page_offset: usize) -> PhysAddr {
-        assert!(page_offset >= PAGE_SIZE, "page offset overflow");
-        return PhysAddr::new(self.get_base_address() & page_offset);
+        assert!(page_offset < PAGE_SIZE, "page offset overflow");
+        return PhysAddr::new(self.get_base_address() | page_offset);
     }
 }
 
