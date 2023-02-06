@@ -172,7 +172,7 @@ pub fn translated_byte_buffer(
     let page_table = PageTable::from_satp_register(satp);
     let mut start = ptr as usize;
     let end = start + len;
-    let mut v = Vec::new();
+    let mut v: Vec<&'static mut[u8]> = Vec::new();
     while start < end {
         let start_va = VirtAddr::new(start);
         let mut vpn = start_va.floor();
@@ -183,7 +183,7 @@ pub fn translated_byte_buffer(
         vpn.step();
         let mut end_va = VirtAddr::from_vpn(vpn);
         end_va = end_va.min(VirtAddr::new(end));
-        v.push(&ppn.as_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
+        v.push(&mut ppn.as_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
         start = end_va.into();
     }
     return v;
