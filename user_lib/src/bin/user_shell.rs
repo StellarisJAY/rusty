@@ -4,7 +4,7 @@ extern crate alloc;
 
 #[macro_use]
 extern crate lib_rusty;
-use lib_rusty::{exec, fork, waitpid};
+use lib_rusty::*;
 use lib_rusty::console::{get_char};
 use alloc::string::String;
 
@@ -15,6 +15,7 @@ const BS: u8 = 0x08;
 
 #[no_mangle]
 pub fn main() -> isize {
+    println!("User command line entered");
     let mut line = String::new();
     print!(">>> ");
     loop {
@@ -24,19 +25,15 @@ pub fn main() -> isize {
                 println!("");
                 if !line.is_empty() {
                     line.push('\0');
-                    let pid = fork();
-                    if pid == 0 {
-                        // 子进程
-                         if exec(&line) == -1 {
-                             println!("error when executing: {}", line);
-                             return -4;
-                         }
+                    let pid = spawn(&line);
+                    if pid == -1 {
+                        shell_error!("command \"{}\" not found", &line);
+                        line.clear();
                     }else {
-                        // shell进程
+                        // 等待子进程结束
                         let mut exit_code: i32 = 0;
                         let exit_pid = waitpid(pid, &mut exit_code);
                         assert_eq!(pid, exit_pid);
-                        println!("pid: {} exited with code: {}", pid, exit_code);
                         line.clear();
                     }
                 }
@@ -53,5 +50,14 @@ pub fn main() -> isize {
                 line.push(c as char);
             }
         }
+    }
+}
+
+#[macro_export]
+macro_rules! shell_error {
+    ($fmt: literal $(, $($arg: tt)+)?)=>{
+        $crate::lib_rusty::console::print_str("\x1b[31m[shell] [ERROR] ");
+        $crate::lib_rusty::console::print(format_args!($fmt $(, $($arg)+)?));
+        $crate::lib_rusty::console::print_str("\x1b[0m\n");
     }
 }
