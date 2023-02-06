@@ -14,7 +14,7 @@ const PID_LIMIT: usize = 1024;
 
 impl PIDAllocator {
     fn new(start: usize, end: usize) -> Self {
-        assert!(end <= start, "invalid pid range");
+        assert!(end > start, "invalid pid range");
         return PIDAllocator { current: start, end: end, recycled: Vec::new() };
     }
     fn alloc(&mut self) -> Option<PIDHandle> {

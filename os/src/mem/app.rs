@@ -1,5 +1,4 @@
 use super::memory_set::*;
-use xmas_elf::ElfFile;
 use super::address::*;
 use crate::config::{PAGE_SIZE, USER_STACK_SIZE, TRAP_CONTEXT, TRAMPOLINE};
 

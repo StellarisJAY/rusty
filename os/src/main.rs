@@ -3,7 +3,6 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 extern crate alloc;
-#[macro_use]
 extern crate bitflags;
 mod lang_items;
 mod sbi;
@@ -11,15 +10,14 @@ mod sbi;
 mod console;
 mod syscall;
 
-
 mod banner;
 mod sync;
 mod trap;
 mod loader;
 mod config;
-mod task;
 mod timer;
 mod mem;
+mod proc;
 
 use core::arch::global_asm;
 // 让编译器将该汇编代码文件作为编入全局代码
@@ -30,6 +28,8 @@ global_asm!(include_str!("asm/entry.asm"));
 // 载入app程序代码
 global_asm!(include_str!("asm/link_app.S"));
 
+global_asm!(include_str!("asm/switch.S"));
+
 // entry.asm中完成启动后，通过call rust_main命令跳转到该函数中
 #[no_mangle]
 pub fn rust_main() {
@@ -37,9 +37,11 @@ pub fn rust_main() {
     // 清空bss段
     clear_bss();
     mem::init();
+    loader::list_apps();
     trap::enable_stimer();
     timer::set_next_time_trigger();
-    task::run_first_task();
+    proc::add_initproc();
+    proc::run_processes();
 }
 
 // 清空bss段

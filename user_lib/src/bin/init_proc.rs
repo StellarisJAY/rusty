@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
 use lib_rusty::*;
 
 #[no_mangle]
