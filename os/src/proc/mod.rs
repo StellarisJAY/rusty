@@ -59,12 +59,12 @@ pub fn suspend_current_and_run_next() {
 // 进程退出，变成僵尸进程
 pub fn exit_current_and_run_next(exit_code: i32) {
     let current = take_current_process().unwrap();
-    let inner = current.exclusive_borrow_inner();
+    let mut inner = current.exclusive_borrow_inner();
     inner.status = ProcessStatus::Zombie;
     inner.exit_code = exit_code;
 
     // 将该进程的子进程交给INIT_PROC
-    let init_proc_inner = INIT_PROC.exclusive_borrow_inner();
+    let mut init_proc_inner = INIT_PROC.exclusive_borrow_inner();
     for child in inner.children.iter() {
         init_proc_inner.children.push(child.clone());
         child.exclusive_borrow_inner().parent = Some(Arc::downgrade(&INIT_PROC));
