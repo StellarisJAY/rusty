@@ -92,3 +92,7 @@ pub fn fork() -> isize {
 pub fn read(fd: usize, buffer: &mut [u8]) -> isize {
     sys_read(fd, buffer)
 }
+
+pub fn spawn(path: &str) -> isize {
+    return sys_spawn(path);
+}

@@ -1,17 +1,17 @@
 use crate::timer::get_time_ms;
 use crate::proc::{suspend_current_and_run_next, current_process, add_process, current_proc_satp, exit_current_and_run_next};
-use crate::proc::pcb::ProcessStatus;
+use crate::proc::pcb::{ProcessStatus, ProcessControlBlock};
 use crate::mem::page_table::{translate_string, translate_ptr};
 use crate::loader::get_app_data_by_name;
+use alloc::sync::Arc;
+
 
 pub fn sys_exit(xstate: i32) -> ! {
-    kernel_info!("Application exited with code {}", xstate);
     exit_current_and_run_next(xstate);
     panic!("unreachable");
 }
 
 pub fn sys_yield() -> isize{
-    debug!("application yield");
     suspend_current_and_run_next();
     0
 }
@@ -75,3 +75,23 @@ pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     return -2;
 }
 
+pub fn sys_spawn(path: *const u8) -> isize {
+    let satp = current_proc_satp();
+    let str = translate_string(satp, path);
+    if let Some(app_data) = get_app_data_by_name(&str) {
+        let parent = current_process().unwrap();
+        let child_pcb = Arc::new(ProcessControlBlock::new(app_data));
+        let pid = child_pcb.pid.0;
+        let mut child_inner = child_pcb.exclusive_borrow_inner();
+        child_inner.parent = Some(Arc::downgrade(&parent));
+        child_inner.status = ProcessStatus::Ready;
+        let mut parent_inncer = parent.exclusive_borrow_inner();
+        parent_inncer.children.push(child_pcb.clone());
+        drop(parent_inncer);
+        drop(child_inner);
+        add_process(child_pcb);
+        return pid as isize;
+    }else {
+        return -1;
+    }
+}

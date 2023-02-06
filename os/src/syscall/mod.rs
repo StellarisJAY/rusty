@@ -14,6 +14,8 @@ const SYS_CALL_FORK: usize = 220;
 const SYS_CALL_WAITPID: usize = 260;
 const SYS_CALL_EXEC: usize = 221;
 
+const SYS_CALL_SPAWN: usize = 400;
+
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     match syscall_id {
         SYS_CALL_READ => sys_read(args[0], args[1] as *mut u8, args[2]),
@@ -24,6 +26,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYS_CALL_FORK => sys_fork(),
         SYS_CALL_EXEC => sys_exec(args[0] as *const u8),
         SYS_CALL_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
+        SYS_CALL_SPAWN => sys_spawn(args[0] as *const u8),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }
