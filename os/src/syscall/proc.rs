@@ -75,12 +75,3 @@ pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     return -2;
 }
 
-// sys_wait，等待任意一个子进程结束，返回子进程pid
-pub fn sys_wait(exit_code: *mut i32) -> isize {
-    loop {
-        match sys_waitpid(-1, exit_code) {
-            -2 => {sys_yield();},
-            exited_pid => {return exited_pid;}
-        }
-    }
-}
