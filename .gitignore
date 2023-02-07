@@ -2,3 +2,5 @@ os/target
 os/Cargo.lock
 user_lib/target
 user_lib/Cargo.lock
+fs/target
+fs/Cargo.lock
