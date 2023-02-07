@@ -96,3 +96,25 @@ pub fn read(fd: usize, buffer: &mut [u8]) -> isize {
 pub fn spawn(path: &str) -> isize {
     return sys_spawn(path);
 }
+
+extern crate bitflags;
+
+bitflags::bitflags! {
+    // open系统调用flags
+    pub struct OpenFlags:u32 {
+        const READ = 0;
+        const WRITE = 1 << 0;
+        const RDWR = 1 << 1;
+        const CREATE = 1 << 9;
+        const TRUNC = 1 << 10;
+    }
+}
+
+
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
+}
