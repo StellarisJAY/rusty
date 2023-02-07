@@ -63,6 +63,30 @@ impl DiskINode {
         return self._type == INodeType::File;
     }
 
+    // 获取文件所需的数据块数量
+    pub fn data_blocks(&self) -> u32 {
+        return data_blocks_for_size(self.size);
+    }
+
+    // 文件所需的磁盘块总数 = inodes + data
+    pub fn total_blocks(&self) -> u32 {
+        let data_blocks = data_blocks_for_size(self.size);
+        let mut total = data_blocks + 1; // 数据块 + 根inode
+        if data_blocks < (INODE_DIRECT_LIMIT as u32) {
+            return total;
+        }
+        // 加上一个一级索引块
+        total += 1;
+        if data_blocks < (INODE_INDIRECT1_LIMIT as u32) {
+            return total;
+        }else {
+            let second_idx_blocks = data_blocks - INODE_DIRECT_LIMIT as u32 - INODE_INDIRECT1_LIMIT as u32;
+            // 加上二级需要的一级块数量和一个二级块
+            total = total + second_idx_blocks / 128 + 1;
+            return total;
+        }
+    }
+
     // 获取一个文件中的pos位置所属的磁盘块编号
     pub fn get_block_id(&self, pos: u32, block_device: Arc<dyn BlockDevice>) -> u32 {
         let mut inner = pos as usize / BLOCK_SIZE;
@@ -95,7 +119,11 @@ impl DiskINode {
     }
 }
 
-
+// 计算size所需的数据块个数
+fn data_blocks_for_size(size: u32) -> u32 {
+    // 向上取整
+    (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32
+}
 
 
 
