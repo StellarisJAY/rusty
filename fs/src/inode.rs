@@ -13,9 +13,13 @@ pub const INODE_SIZE: u32 = 128;
 // 一个block中的inode数量
 pub const INODES_PER_BLOCK: u32 = BLOCK_SIZE as u32 / INODE_SIZE;
 
+// 直接索引的块数量
 const DIRECT_INDEX_BLOCKS: u32 = 12;
+// 可直接索引的文件大小上限 48KiB
 const DIRECT_SIZE_LIMIT: u32 = DIRECT_INDEX_BLOCKS * BLOCK_SIZE as u32;
+// 一级索引的块数量
 const INDIRECT1_BLOCK_LIMIT: u32 = BLOCK_SIZE as u32 / 4;
+// 可一级索引的文件大小上限
 const INDIRECT1_SIZE_LIMIT: u32 = DIRECT_SIZE_LIMIT + BLOCK_SIZE as u32 * INDIRECT1_BLOCK_LIMIT;
 
 // inode，大小对齐128字节
@@ -139,7 +143,8 @@ impl DiskINode {
         // buf数组写入位置
         let mut idx = 0;
         loop {
-            // 获取当前块的cache
+            // 通过inode索引获取块id
+            // 读取文件的io瓶颈，尽量顺序读来减少索引块的IO
             let block_id = self.get_block_id(current_block_seq, Arc::clone(&block_dev));
             let block = get_block_cache(block_id as usize, Arc::clone(&block_dev));
             let cache = block.lock();
