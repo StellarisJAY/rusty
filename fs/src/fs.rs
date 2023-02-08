@@ -2,6 +2,7 @@ use super::block_device::BlockDevice;
 use super::bitmap::{Bitmap, BLOCK_BITS};
 use super::block_layout::SuperBlock;
 use super::block_cache::{get_block_cache};
+use super::inode::{INODES_PER_BLOCK};
 use alloc::sync::Arc;
 pub struct FileSystem {
     pub block_dev: Arc<dyn BlockDevice>, // 文件系统块设备
@@ -13,7 +14,8 @@ pub struct FileSystem {
 
 impl FileSystem {
     pub fn create(block_dev: Arc<dyn BlockDevice>, total_blocks: u32, inode_bitmap_blocks: u32) -> Self {
-        let inode_blocks = inode_bitmap_blocks * BLOCK_BITS as u32;
+        // 因为一个block可以存多个inode，所以inode块总数 = bit总数（inode总数） /  一个块中能容纳的inode数
+        let inode_blocks = inode_bitmap_blocks * BLOCK_BITS as u32 / INODES_PER_BLOCK;
         // 去除超级块、inode块后剩余的交给数据块和数据bitmap
         let remaining = total_blocks - (inode_blocks + inode_bitmap_blocks + 1);
         // data bitmap块数量 = 剩余块 / （一个bitmap块和若干数据块） 向上取整
@@ -43,6 +45,13 @@ impl FileSystem {
             inode_area_start: 1 + inode_bitmap_blocks,
             data_area_start: 1 + inode_bitmap_blocks + inode_blocks + data_bitmap_blocks,
         };
+    }
+
+    // 获取一个inode的全局块号和块内编号
+    pub fn get_inode_block_id(&self, inode_id: u32) -> (u32, u32) {
+        let inode_block = self.inode_area_start + inode_id / INODES_PER_BLOCK;
+        let inner_inode_id = inode_id % INODES_PER_BLOCK;
+        return (inode_block, inner_inode_id);
     }
 }
 
