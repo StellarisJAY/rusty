@@ -16,6 +16,14 @@ impl SuperBlock {
         return Self { magic: FS_MAGIC, inode_bitmap_blocks: inode_bitmaps,
             inode_blocks: inodes, data_bitmap_blocks: data_bitmaps, data_blocks: data_blocks };
     }
+
+    pub fn init(&mut self, inode_bitmaps: u32, inodes: u32, data_bitmaps: u32, data_blocks: u32) {
+         self.magic = FS_MAGIC;
+         self.inode_bitmap_blocks = inode_bitmaps;
+         self.inode_blocks = inodes;
+         self.data_bitmap_blocks = data_bitmaps;
+         self.data_blocks = data_blocks;
+    }
     pub fn is_valid(&self) -> bool {
         return self.magic == FS_MAGIC;
     }
