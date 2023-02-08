@@ -4,8 +4,8 @@ use alloc::collections::VecDeque;
 use spin::mutex::Mutex;
 use lazy_static::lazy_static;
 
-// 一个磁盘块的大小
-pub const BLOCK_SIZE: usize = 512;
+// 一个磁盘块的大小，4KiB
+pub const BLOCK_SIZE: usize = 4096;
 pub const BLOCK_CACHE_SIZE: usize = 16;
 
 // 一个磁盘块缓存项
@@ -56,6 +56,13 @@ impl BlockCache {
     // 块缓存地址
     pub fn addr(&self, offset: usize) -> usize {
         return &self.cache[offset] as *const _ as usize;
+    }
+
+    pub fn u32_array(&self) -> &'static [u32] {
+        let ptr = self.addr(0) as *const u32;
+        unsafe {
+            return core::slice::from_raw_parts(ptr, BLOCK_SIZE / 4);
+        }
     }
 
     pub fn get_ref<T>(&self, offset: usize) -> &T where T: Sized {
