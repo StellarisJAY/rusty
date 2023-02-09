@@ -3,7 +3,10 @@ use super::bitmap::{Bitmap, BLOCK_BITS};
 use super::block_layout::SuperBlock;
 use super::block_cache::{get_block_cache};
 use super::inode::{INODES_PER_BLOCK};
+use super::vfs::INode;
 use alloc::sync::Arc;
+use spin::Mutex;
+
 pub struct FileSystem {
     pub block_dev: Arc<dyn BlockDevice>, // 文件系统块设备
     pub inode_bitmap: Bitmap,            // inode分配表
@@ -13,6 +16,7 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
+    // 在块设备上创建文件系统
     pub fn create(block_dev: Arc<dyn BlockDevice>, total_blocks: u32, inode_bitmap_blocks: u32) -> Self {
         // 因为一个block可以存多个inode，所以inode块总数 = bit总数（inode总数） /  一个块中能容纳的inode数
         let inode_blocks = inode_bitmap_blocks * BLOCK_BITS as u32 / INODES_PER_BLOCK;
@@ -47,11 +51,68 @@ impl FileSystem {
         };
     }
 
+    // 从块设备上打开一个文件系统
+    pub fn open(block_dev: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
+        let super_block_cache = get_block_cache(0, Arc::clone(&block_dev));
+        let super_block_cache_locked = super_block_cache.lock();
+        // 获取超级块数据结构
+        let super_block: &SuperBlock = super_block_cache_locked.get_ref(0);
+        if super_block.is_valid() {
+            // 根据超级块的信息，获取文件系统数据块、inode块位置
+            let inode_blocks = super_block.inode_blocks;
+            let inode_bitmap_blocks = super_block.inode_bitmap_blocks;
+            // 获取bitmap区域
+            let inode_bitmap = Bitmap::new(1, inode_bitmap_blocks);
+            let data_bitmap = Bitmap::new(1 + inode_bitmap_blocks + inode_blocks, super_block.data_bitmap_blocks);
+            let fs =  Self {
+                block_dev: block_dev,
+                inode_bitmap: inode_bitmap,
+                inode_area_start: 1 + inode_bitmap_blocks,
+                data_bitmap: data_bitmap,
+                data_area_start: 1 + inode_bitmap_blocks + inode_blocks + super_block.data_bitmap_blocks,
+            };
+            return Arc::new(Mutex::new(fs));
+        }else {
+            panic!("invalid file system super block");
+        }
+    }
+
     // 获取一个inode的全局块号和块内编号
     pub fn get_inode_block_id(&self, inode_id: u32) -> (u32, u32) {
         let inode_block = self.inode_area_start + inode_id / INODES_PER_BLOCK;
         let inner_inode_id = inode_id % INODES_PER_BLOCK;
         return (inode_block, inner_inode_id);
+    }
+
+    // 获取一个数据块的全局块号
+    pub fn get_data_block_id(&self, data_id: u32) -> u32 {
+        return self.data_area_start + data_id;
+    }
+    // 从inode bitmap分配一个inode块，返回inode区域局部块号
+    pub fn alloc_inode(&mut self) -> u32 {
+        return self.inode_bitmap.alloc_block(Arc::clone(&self.block_dev)).unwrap();
+    }
+
+    // 分配data块，获取全局块号
+    pub fn alloc_data_block(&mut self) -> u32 {
+        return self.data_bitmap.alloc_block(Arc::clone(&self.block_dev)).unwrap() + self.data_area_start;
+    }
+
+    // 回收一个data块
+    pub fn dealloc_data_block(&mut self, block_id: u32) {
+        let block_cache = get_block_cache(block_id as usize, Arc::clone(&self.block_dev));
+        let mut locked_cache = block_cache.lock();
+        // 清空缓存数据
+        locked_cache.clear();
+        // bitmap回收data_block
+        self.data_bitmap.dealloc(block_id - self.data_area_start, Arc::clone(&self.block_dev));
+    }
+
+    // 根inode节点，inode编号为0
+    pub fn root_inode(fs: Arc<Mutex<Self>>) -> INode {
+        let fs_locked = fs.lock();
+        let (block_id, inode_offset) = fs_locked.get_inode_block_id(0);
+        return INode::new(block_id, inode_offset, Arc::clone(&fs), Arc::clone(&fs_locked.block_dev));
     }
 }
 

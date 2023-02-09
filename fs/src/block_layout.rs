@@ -5,10 +5,10 @@ const FS_MAGIC: u32 = 0xf3fc;
 #[repr(C)]
 pub struct SuperBlock {
     magic: u32,               // 超级块验证magic num
-    inode_bitmap_blocks: u32, // inode bitmap的block数量
-    inode_blocks: u32,        // inode块数量
-    data_bitmap_blocks: u32,  // 数据bitmap块数量
-    data_blocks: u32,         // 数据块数量
+    pub inode_bitmap_blocks: u32, // inode bitmap的block数量
+    pub inode_blocks: u32,        // inode块数量
+    pub data_bitmap_blocks: u32,  // 数据bitmap块数量
+    pub data_blocks: u32,         // 数据块数量
 }
 
 impl SuperBlock {
