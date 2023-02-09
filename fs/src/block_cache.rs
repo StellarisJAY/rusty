@@ -52,6 +52,12 @@ impl BlockCache {
             self.modified = false;
         }
     }
+    
+    // 清空缓存，并设置modified等待写回磁盘
+    pub fn clear(&mut self) {
+        self.cache.fill(0);
+        self.modified = true;
+    }
 
     // 块缓存地址
     pub fn addr(&self, offset: usize) -> usize {
@@ -85,11 +91,14 @@ impl BlockCache {
             return ptr.as_mut().unwrap();
         }
     }
-    pub fn read<T, V>(&self, offset: usize, f: impl FnOnce(&T) -> V) -> V {
+    // 读取inode缓存数据并进行只读操作
+    pub fn read<T,V>(&self, offset: usize, f: impl FnOnce(&T) -> V)->V {
+        // 先将cache读取成T类型，再调用f处理，最终返回V
         f(self.get_ref(offset))
     }
 
-    pub fn modify<T, V>(&mut self, offset:usize, f: impl FnOnce(&mut T) -> V) -> V {
+    // 闭包函数修改inode缓存数据
+    pub fn modify<T,V>(&mut self, offset: usize, f: impl FnOnce(&mut T) -> V) -> V {
         f(self.get_mut(offset))
     }
 }
