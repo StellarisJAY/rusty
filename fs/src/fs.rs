@@ -1,7 +1,7 @@
 use super::block_device::BlockDevice;
 use super::bitmap::{Bitmap, BLOCK_BITS};
 use super::block_layout::SuperBlock;
-use super::block_cache::{get_block_cache};
+use super::block_cache::{get_block_cache, BLOCK_SIZE};
 use super::inode::{INODES_PER_BLOCK};
 use super::vfs::INode;
 use alloc::sync::Arc;
@@ -28,19 +28,18 @@ impl FileSystem {
 
         // 清空缓存
         for i in 0..total_blocks {
-            let cache = get_block_cache(i as usize, Arc::clone(&block_dev));
-            let mut block = cache.lock();
-            block.cache.fill(0u8);
-            block.modified = true;
+            get_block_cache(i as usize, Arc::clone(&block_dev))
+            .lock()
+            .modify(0, |cache: &mut [u8;BLOCK_SIZE as usize]| {
+                cache.fill(0);
+            });
         }
-
-        // 获取块号为0的超级块，修改后drop，自动写回磁盘
-        let block = get_block_cache(0, Arc::clone(&block_dev));
-        let mut cache = block.lock();
-        let super_block: &mut SuperBlock = cache.get_mut(0);
-        super_block.init(inode_bitmap_blocks, inode_blocks, data_bitmap_blocks, data_blocks);
-        drop(super_block);
-        drop(cache);
+        // 初始化 超级块
+        get_block_cache(0, Arc::clone(&block_dev))
+        .lock()
+        .modify(0, |super_block: &mut SuperBlock| {
+            super_block.init(inode_bitmap_blocks, inode_blocks, data_bitmap_blocks, data_blocks);
+        });
 
         return Self{
             block_dev: block_dev,
@@ -53,28 +52,29 @@ impl FileSystem {
 
     // 从块设备上打开一个文件系统
     pub fn open(block_dev: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
-        let super_block_cache = get_block_cache(0, Arc::clone(&block_dev));
-        let super_block_cache_locked = super_block_cache.lock();
-        // 获取超级块数据结构
-        let super_block: &SuperBlock = super_block_cache_locked.get_ref(0);
-        if super_block.is_valid() {
-            // 根据超级块的信息，获取文件系统数据块、inode块位置
-            let inode_blocks = super_block.inode_blocks;
-            let inode_bitmap_blocks = super_block.inode_bitmap_blocks;
-            // 获取bitmap区域
-            let inode_bitmap = Bitmap::new(1, inode_bitmap_blocks);
-            let data_bitmap = Bitmap::new(1 + inode_bitmap_blocks + inode_blocks, super_block.data_bitmap_blocks);
-            let fs =  Self {
-                block_dev: block_dev,
-                inode_bitmap: inode_bitmap,
-                inode_area_start: 1 + inode_bitmap_blocks,
-                data_bitmap: data_bitmap,
-                data_area_start: 1 + inode_bitmap_blocks + inode_blocks + super_block.data_bitmap_blocks,
-            };
-            return Arc::new(Mutex::new(fs));
-        }else {
-            panic!("invalid file system super block");
-        }
+        // 读取超级块，闭包处理后返回文件系统实例
+        return get_block_cache(0, Arc::clone(&block_dev))
+        .lock()
+        .read(0, |super_block: &SuperBlock| {
+            if super_block.is_valid() {
+                // 根据超级块的信息，获取文件系统数据块、inode块位置
+                let inode_blocks = super_block.inode_blocks;
+                let inode_bitmap_blocks = super_block.inode_bitmap_blocks;
+                // 获取bitmap区域
+                let inode_bitmap = Bitmap::new(1, inode_bitmap_blocks);
+                let data_bitmap = Bitmap::new(1 + inode_bitmap_blocks + inode_blocks, super_block.data_bitmap_blocks);
+                let fs =  Self {
+                    block_dev: block_dev,
+                    inode_bitmap: inode_bitmap,
+                    inode_area_start: 1 + inode_bitmap_blocks,
+                    data_bitmap: data_bitmap,
+                    data_area_start: 1 + inode_bitmap_blocks + inode_blocks + super_block.data_bitmap_blocks,
+                };
+                return Arc::new(Mutex::new(fs));
+            }else {
+                panic!("invalid file system super block");
+            }
+        });
     }
 
     // 获取一个inode的全局块号和块内编号

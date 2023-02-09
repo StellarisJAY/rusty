@@ -22,6 +22,8 @@ const INDIRECT1_BLOCK_LIMIT: u32 = BLOCK_SIZE as u32 / 4;
 // 可一级索引的文件大小上限
 const INDIRECT1_SIZE_LIMIT: u32 = DIRECT_SIZE_LIMIT + BLOCK_SIZE as u32 * INDIRECT1_BLOCK_LIMIT;
 
+const INDEX_PER_BLOCK: u32 = INDIRECT1_BLOCK_LIMIT;
+
 // inode，大小对齐128字节
 #[repr(align(128))]
 pub struct DiskINode {
@@ -90,30 +92,26 @@ impl DiskINode {
         // 减去直接索引的节点数量
         blocks -= DIRECT_INDEX_BLOCKS;
         if blocks <= INDIRECT1_BLOCK_LIMIT {
-            // 找到一级索引节点
-            let indirect1 = get_block_cache(self.indirect1 as usize, Arc::clone(&block_dev));
-            let cache1 = indirect1.lock();
-            // 索引节点转换成u32数组，从数组获取对应序号的id
-            let id = cache1.u32_array()[blocks as usize - 1];
-            drop(cache1);
-            drop(indirect1);
-            return id;
+            return get_block_cache(self.indirect1 as usize, Arc::clone(&block_dev))
+            .lock()
+            .read(0, |indexes: &[u32; INDEX_PER_BLOCK as usize]| {
+                return indexes[blocks as usize - 1];
+            });
         }else {
             // 减去一级的block数量
             blocks -= INDIRECT1_BLOCK_LIMIT;
-            // 二级索引节点
-            let indirect2 = get_block_cache(self.indirect2 as usize, Arc::clone(&block_dev));
-            let cache2 = indirect2.lock();
-            // 序号在二级数组的位置获得一级索引块id
-            let id = cache2.u32_array()[((blocks - 1)/INDIRECT1_BLOCK_LIMIT) as usize];
-            drop(cache2);
-            drop(indirect2);
-            let indirect1 = get_block_cache(id as usize, Arc::clone(&block_dev));
-            let cache1 = indirect1.lock();
-            let id = cache1.u32_array()[((blocks-1) % INDIRECT1_BLOCK_LIMIT) as usize];
-            drop(cache1);
-            drop(indirect1);
-            return id;
+            // 从二级索引获取一级索引块id
+            let id = get_block_cache(self.indirect2 as usize, Arc::clone(&block_dev))
+            .lock()
+            .read(0, |l2_idxs: &[u32; 1024]| {
+                return l2_idxs[((blocks - 1) / INDEX_PER_BLOCK) as usize];
+            });
+            // 从一级索引块获取data块id
+            return get_block_cache(id as usize, Arc::clone(&block_dev))
+            .lock()
+            .read(((blocks - 1) % INDEX_PER_BLOCK) as usize, |id: &u32| {
+                return *id;
+            });
         }
     }
 
@@ -140,7 +138,7 @@ impl DiskINode {
         let end_block_seq = end_off / BLOCK_SIZE as u32;
         // 初始的块内偏移
         let mut inner_start = offset % BLOCK_SIZE as u32;
-        // 初始的块内结束位置
+        // 初始的块内结束位置，除了最后一个块，其他都是块末尾
         let mut inner_end = BLOCK_SIZE;
         // 顺序读取的最后一个块序号
         let mut current_block_seq = offset / BLOCK_SIZE as u32;
@@ -150,22 +148,27 @@ impl DiskINode {
             // 通过inode索引获取块id
             // 读取文件的io瓶颈，尽量顺序读来减少索引块的IO
             let block_id = self.get_block_id(current_block_seq, Arc::clone(&block_dev));
-            let block = get_block_cache(block_id as usize, Arc::clone(&block_dev));
-            let cache = block.lock();
+            // 读取块缓存，将缓存内容拷贝
+            get_block_cache(block_id as usize, Arc::clone(&block_dev))
+            .lock()
+            .read(0, |bytes: &[u8; BLOCK_SIZE as usize]| {
+                // 最后一个块的右边界通过endoff计算
+                if current_block_seq == end_block_seq {
+                    inner_end = end_off as usize % BLOCK_SIZE;
+                }
+                buf[idx..].copy_from_slice(&bytes[inner_start as usize..=inner_end]);
+            });
             // 最后一个block
             if current_block_seq == end_block_seq {
-                inner_end = end_off as usize % BLOCK_SIZE;
-                // start到end的数据写入buf
-                buf[idx..].copy_from_slice(&cache.cache[inner_start as usize..=inner_end]);
                 break;
             }else {
-                buf[idx..].copy_from_slice(&cache.cache[inner_start as usize..=inner_end]);
                 // 本次读取的长度
                 let read_len = inner_end - inner_start as usize + 1;
                 // 已读取的长度 = 块大小 - 块内偏移
                 idx += read_len;
                 // 下一个block
                 current_block_seq += 1;
+                // 除了第一个块，其他都是块起始位置
                 inner_start = 0;
             }
         }
