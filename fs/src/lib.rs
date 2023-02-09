@@ -5,5 +5,5 @@ mod bitmap;
 mod inode;
 mod dir;
 mod fs;
-
+mod vfs;
 extern crate alloc;
