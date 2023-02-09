@@ -40,7 +40,7 @@ impl Bitmap {
         return None;
     }
     // 回收一个块，参数seq为块的序号，即从bitmap第一个block开始到目标块的序号
-    pub fn dealloc(&self, seq: usize, block_device: Arc<dyn BlockDevice>) {
+    pub fn dealloc(&self, seq: u32, block_device: Arc<dyn BlockDevice>) {
         let (block, idx, u64_offset) = decompose_bits(seq);
         let cache = get_block_cache(block as usize + self.first_block as usize, Arc::clone(&block_device));
         let mut locked = cache.lock();
@@ -52,9 +52,9 @@ impl Bitmap {
 }
 
 // 从bit序号计算block序号, idx, u64 offset
-fn decompose_bits(mut bits: usize) -> (u32, u32, u32) {
-    let block = bits / BLOCK_BITS;
-    bits = bits % BLOCK_SIZE;
+fn decompose_bits(mut bits: u32) -> (u32, u32, u32) {
+    let block = bits / BLOCK_BITS as u32;
+    bits = bits % BLOCK_SIZE as u32;
     return (block as u32, bits as u32 / 64, bits as u32 % 64);
 }
 
