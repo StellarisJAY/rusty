@@ -45,15 +45,14 @@ impl DiskINode {
         return Self::data_blocks_for_size(self.size);
     }
 
-    fn data_blocks_for_size(size: u32) -> u32 {
+    pub fn data_blocks_for_size(size: u32) -> u32 {
         // 向上取整
         return (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32;
     }
 
-    // 文件占用的磁盘块总数 = inode + 索引块 + 数据块
-    pub fn total_blocks(&self) -> u32 {
-        let mut data_blocks = self.data_blocks();
-        let mut total = data_blocks + 1;
+    pub fn index_blocks_for_size(size: u32) -> u32 {
+        let mut data_blocks = (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32;
+        let mut total = 0;
         // 大小在直接索引范围内
         if data_blocks <= DIRECT_INDEX_BLOCKS {
             return total;
@@ -74,6 +73,11 @@ impl DiskINode {
             }
             return total;
         }
+    }
+
+    // 文件占用的磁盘块总数 = inode + 索引块 + 数据块
+    pub fn total_blocks(&self) -> u32 {
+        return self.data_blocks() + Self::index_blocks_for_size(self.size) + 1;
     }
 
     // 根据块顺序获取第seq个块的磁盘块id
@@ -167,6 +171,10 @@ impl DiskINode {
         }
     }
 
+    pub fn write(&mut self, offset: u32, buf: &[u8], block_dev: Arc<dyn BlockDevice>) {
+        //todo write at offset
+    }
+
     // 向文件添加数据块来增大文件大小
     // index_blocks为预先计算出来需要的一级和二级索引块
     pub fn increse_size(&mut self, new_size: u32, new_blocks: Vec<u32>, mut index_blocks: Vec<u32>, block_dev: Arc<dyn BlockDevice>) {
@@ -214,12 +222,6 @@ impl DiskINode {
                 })
             }
             current_blocks += 1;
-        }
-    }
-
-    fn ensure_indirect1_index_block(&mut self) {
-        if self.indirect1 == 0 {
-
         }
     }
 }

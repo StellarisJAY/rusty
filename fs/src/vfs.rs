@@ -3,7 +3,7 @@ use super::fs::FileSystem;
 use super::inode::{DiskINode, INodeType};
 use super::block_cache::get_block_cache;
 use super::dir::{DIR_SIZE, DirEntry};
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 use alloc::sync::Arc;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -35,7 +35,7 @@ impl INode {
     }
 
     // 修改磁盘inode的互斥操作
-    pub fn modify_disk_inode<V>(&mut self, f: impl FnOnce(&mut DiskINode)->V) -> V {
+    pub fn modify_disk_inode<V>(&self, f: impl FnOnce(&mut DiskINode)->V) -> V {
         get_block_cache(self.block_id as usize, Arc::clone(&self.block_dev))
         .lock()
         .modify(self.block_offset as usize, |inode: &mut DiskINode| {
@@ -76,6 +76,7 @@ impl INode {
         let mut files = Vec::new();
         // 对disk inode互斥只读操作
         self.read_disk_inode(|disk_inode| {
+            assert!(disk_inode._type == INodeType::Directory);
             let file_count = disk_inode.size / DIR_SIZE;
             for i in 0..file_count {
                 let mut dir_entry = DirEntry::empty();
@@ -85,6 +86,43 @@ impl INode {
             }
         });
         return files;
+    }
+    // 从inode读取文件
+    pub fn read_at(&self, offset: u32, buf: &mut [u8]) {
+        // 互斥读
+        let _fs = self.fs.lock();
+        self.read_disk_inode(|disk_inode: &DiskINode| {
+            disk_inode.read(offset, buf, Arc::clone(&self.block_dev));
+        });
+    }
+
+    // 写入文件offset位置
+    pub fn write_at(&mut self, offset: u32, buf: &[u8]) {
+        // 互斥写
+        let mut fs = self.fs.lock();
+        self.modify_disk_inode(|disk_inode: &mut DiskINode| {
+            self.increase_size(offset + buf.len() as u32, disk_inode, &mut fs);
+            disk_inode.write(offset, buf, Arc::clone(&self.block_dev));
+        });
+    }
+    // inode对应的文件扩容到新的大小
+    fn increase_size(&self, new_size: u32, disk_inode: &mut DiskINode, fs: &mut MutexGuard<FileSystem>) {
+        let old_size = disk_inode.size;
+        // 分配需要的新data blocks
+        let new_blocks_needed = DiskINode::data_blocks_for_size(new_size - old_size);
+        let mut new_blocks: Vec<u32> = Vec::new();
+        for _ in 0..new_blocks_needed {
+            new_blocks.push(fs.alloc_data_block());
+        }
+        // 分配新的索引blocks
+        let mut index_blocks: Vec<u32> = Vec::new();
+        // 所需的新索引块 = 新大小索引总数 - 旧索引总数
+        let index_blocks_needed = DiskINode::index_blocks_for_size(new_size) - DiskINode::index_blocks_for_size(old_size);
+        for _ in 0..index_blocks_needed {
+            index_blocks.push(fs.alloc_data_block());
+        }
+        // 磁盘inode扩容
+        disk_inode.increse_size(new_size, new_blocks, index_blocks, Arc::clone(&self.block_dev));
     }
 }
 
