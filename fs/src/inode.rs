@@ -166,5 +166,61 @@ impl DiskINode {
             }
         }
     }
+
+    // 向文件添加数据块来增大文件大小
+    // index_blocks为预先计算出来需要的一级和二级索引块
+    pub fn increse_size(&mut self, new_size: u32, new_blocks: Vec<u32>, mut index_blocks: Vec<u32>, block_dev: Arc<dyn BlockDevice>) {
+        self.size = new_size;
+        let mut current_blocks = self.total_blocks() + 1;
+
+        for new_block in new_blocks {
+            // 可以直接索引
+            if current_blocks <= DIRECT_INDEX_BLOCKS {
+                self.indexes[current_blocks as usize - 1] = new_block;
+            }else if current_blocks <= INDIRECT1_BLOCK_LIMIT + DIRECT_INDEX_BLOCKS { // 一级索引
+                let indirect1_seq = current_blocks - DIRECT_INDEX_BLOCKS - 1;
+                // 一级索引不存在，通过参数的idx_blocks传入
+                if self.indirect1 == 0 {
+                    self.indirect1 = index_blocks.pop().unwrap();
+                }
+                // 在一级索引块中修改第n个block_id
+                get_block_cache(self.indirect1 as usize, Arc::clone(&block_dev))
+                .lock()
+                .modify(indirect1_seq as usize * 4, |block_id: &mut u32| {
+                    *block_id = new_block;
+                })
+            }else {
+                // 二级索引不存在，通过参数创建
+                if self.indirect2 == 0 {
+                    self.indirect2 = index_blocks.pop().unwrap();
+                }
+                // 在二级索引中的序号
+                let indirect2_seq = current_blocks - INDIRECT1_BLOCK_LIMIT - DIRECT_INDEX_BLOCKS - 1;
+                get_block_cache(self.indirect2 as usize, Arc::clone(&block_dev))
+                .lock()
+                .modify(self.indirect2 as usize, |block_ids: &mut [u32;INDIRECT1_BLOCK_LIMIT as usize]| {
+                    let sec_level_seq = indirect2_seq / INDIRECT1_BLOCK_LIMIT;
+                    let first_level_seq = indirect2_seq % INDIRECT1_BLOCK_LIMIT;
+                    // 二级索引中没有该一级索引编号，分配新的块号
+                    if block_ids[sec_level_seq as usize] == 0 {
+                        block_ids[sec_level_seq as usize] = index_blocks.pop().unwrap();
+                    }
+                    // 找到一级索引块，修改对应序号的block id
+                    get_block_cache(block_ids[sec_level_seq as usize] as usize, Arc::clone(&block_dev))
+                    .lock()
+                    .modify(first_level_seq as usize, |block_id: &mut u32| {
+                        *block_id = new_block;
+                    })
+                })
+            }
+            current_blocks += 1;
+        }
+    }
+
+    fn ensure_indirect1_index_block(&mut self) {
+        if self.indirect1 == 0 {
+
+        }
+    }
 }
 
