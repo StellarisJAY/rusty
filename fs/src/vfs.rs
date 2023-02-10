@@ -87,6 +87,42 @@ impl INode {
         });
         return files;
     }
+
+    // 在当前目录下创建文件
+    pub fn create(&mut self, name: &str) -> Option<Arc<INode>> {
+        let (is_dir, file_exist) = self.read_disk_inode(|disk_inode| {
+            if disk_inode.is_dir() {
+                return (true, self.find_file_inode(name, disk_inode).is_some());
+            }
+            return (false, false);
+        });
+        assert!(is_dir);
+        if file_exist {
+            return None;
+        }
+        let mut fs = self.fs.lock();
+        let inode_seq = fs.alloc_inode();
+        let (block_id, block_offset) = fs.get_inode_block_id(inode_seq);
+        // 初始化新文件的磁盘inode
+        get_block_cache(block_id as usize, Arc::clone(&self.block_dev))
+        .lock()
+        .modify(block_offset as usize, |disk_inode: &mut DiskINode| {
+            disk_inode.init(INodeType::File);
+        });
+        // 在当前目录inode中添加新文件的目录项
+        self.modify_disk_inode(|dir_inode| {
+            // 计算新目录项的偏移
+            let offset = dir_inode.size;
+            // 目录inode块扩容
+            self.increase_size(dir_inode.size + DIR_SIZE, dir_inode, &mut fs);
+            // 写入目录entry
+            let dir_entry = DirEntry::new(name, inode_seq);
+            dir_inode.write(offset, dir_entry.to_bytes(), Arc::clone(&self.block_dev));
+        });
+        let inode = Self::new(block_id, block_offset, Arc::clone(&self.fs), Arc::clone(&self.block_dev));
+        return Some(Arc::new(inode));
+    }
+
     // 从inode读取文件
     pub fn read_at(&self, offset: u32, buf: &mut [u8]) {
         // 互斥读
