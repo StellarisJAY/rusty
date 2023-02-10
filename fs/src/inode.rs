@@ -42,6 +42,11 @@ impl DiskINode {
         self.indirect1 = 0;
         self.indirect2 = 0;
     }
+
+    pub fn is_dir(&self) -> bool {
+        return self._type == INodeType::Directory;
+    }
+
     // 文件占用的数据块总数，由文件大小对数据块大小向上取整获得
     pub fn data_blocks(&self) -> u32 {
         return Self::data_blocks_for_size(self.size);
@@ -82,7 +87,7 @@ impl DiskINode {
         return self.data_blocks() + Self::index_blocks_for_size(self.size) + 1;
     }
 
-    // 根据块顺序获取第seq个块的磁盘块id
+    // 根据块顺序获取第seq个数据块的磁盘块id
     pub fn get_block_id(&self, seq: u32, block_dev: Arc<dyn BlockDevice>) -> u32 {
         assert!(self.data_blocks() > seq);
         let mut blocks = seq + 1;
@@ -130,7 +135,7 @@ impl DiskINode {
 
     // 从offset读取文件数据到buf中
     pub fn read(&self, offset: u32, buf: &mut [u8], block_dev: Arc<dyn BlockDevice>) {
-        let mut len = buf.len() as u32;
+        let len = buf.len() as u32;
         assert!(self.size > offset && self.size >= offset + len);
         // 读取结束位置的偏移量
         let end_off = offset + len - 1;
@@ -151,7 +156,7 @@ impl DiskINode {
             // 读取块缓存，将缓存内容拷贝
             get_block_cache(block_id as usize, Arc::clone(&block_dev))
             .lock()
-            .read(0, |bytes: &[u8; BLOCK_SIZE as usize]| {
+            .read(0, |bytes: &[u8; BLOCK_SIZE]| {
                 // 最后一个块的右边界通过endoff计算
                 if current_block_seq == end_block_seq {
                     inner_end = end_off as usize % BLOCK_SIZE;
@@ -162,10 +167,7 @@ impl DiskINode {
             if current_block_seq == end_block_seq {
                 break;
             }else {
-                // 本次读取的长度
-                let read_len = inner_end - inner_start as usize + 1;
-                // 已读取的长度 = 块大小 - 块内偏移
-                idx += read_len;
+                idx += inner_end - inner_start as usize + 1;
                 // 下一个block
                 current_block_seq += 1;
                 // 除了第一个块，其他都是块起始位置
@@ -173,9 +175,35 @@ impl DiskINode {
             }
         }
     }
-
+    // 向inode对应的文件写入数据
     pub fn write(&mut self, offset: u32, buf: &[u8], block_dev: Arc<dyn BlockDevice>) {
-        //todo write at offset
+        let len = buf.len() as u32;
+        assert!(len + offset <= self.size);
+        let end_offset = offset + len;
+        let end_block_seq = end_offset / BLOCK_SIZE as u32;
+        let mut current_block_seq = offset / BLOCK_SIZE as u32;
+        let mut inner_start = offset as usize % BLOCK_SIZE;
+        let mut inner_end = BLOCK_SIZE;
+        let mut idx: usize = 0;
+        loop {
+            // 获取该序号数据块的全局id
+            let data_block_id = self.get_block_id(current_block_seq, Arc::clone(&block_dev));
+            // 修改数据块，写入buf中的数据
+            get_block_cache(data_block_id as usize, Arc::clone(&block_dev))
+            .lock()
+            .modify(0, |cache: &mut [u8; BLOCK_SIZE]| {
+                if current_block_seq == end_block_seq {
+                    inner_end = end_offset as usize % BLOCK_SIZE;
+                }
+                cache[idx..].copy_from_slice(&buf[inner_start..=inner_end]);
+            });
+            if current_block_seq == end_block_seq {
+                break;
+            }
+            current_block_seq += 1;
+            inner_start = 0;
+            idx += inner_end - inner_start + 1;
+        }
     }
 
     // 向文件添加数据块来增大文件大小
