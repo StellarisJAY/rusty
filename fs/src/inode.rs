@@ -179,7 +179,7 @@ impl DiskINode {
     pub fn write(&mut self, offset: u32, buf: &[u8], block_dev: Arc<dyn BlockDevice>) {
         let len = buf.len() as u32;
         assert!(len + offset <= self.size);
-        let end_offset = offset + len;
+        let end_offset = offset + len - 1;
         let end_block_seq = end_offset / BLOCK_SIZE as u32;
         let mut current_block_seq = offset / BLOCK_SIZE as u32;
         let mut inner_start = offset as usize % BLOCK_SIZE;
@@ -195,7 +195,8 @@ impl DiskINode {
                 if current_block_seq == end_block_seq {
                     inner_end = end_offset as usize % BLOCK_SIZE;
                 }
-                cache[idx..].copy_from_slice(&buf[inner_start..=inner_end]);
+                let len = inner_end - inner_start + 1;
+                cache[inner_start..=inner_end].copy_from_slice(&buf[idx..idx + len]);
             });
             if current_block_seq == end_block_seq {
                 break;
