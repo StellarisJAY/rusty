@@ -50,7 +50,7 @@ impl INode {
             .map(|id| {
                 // 从文件系统找到inode id对应的inode块
                 let fs = self.fs.lock();
-                let (block_id, block_offset) = fs.get_inode_block_id(id);
+                let (block_id, _, block_offset) = fs.get_inode_block_id(id);
                 return INode::new(block_id, block_offset, Arc::clone(&self.fs), Arc::clone(&self.block_dev));
             })
         });
@@ -102,7 +102,8 @@ impl INode {
         }
         let mut fs = self.fs.lock();
         let inode_seq = fs.alloc_inode();
-        let (block_id, block_offset) = fs.get_inode_block_id(inode_seq);
+
+        let (block_id, _, block_offset) = fs.get_inode_block_id(inode_seq);
         // 初始化新文件的磁盘inode
         get_block_cache(block_id as usize, Arc::clone(&self.block_dev))
         .lock()

@@ -2,7 +2,7 @@ use super::block_device::BlockDevice;
 use super::bitmap::{Bitmap, BLOCK_BITS};
 use super::block_layout::SuperBlock;
 use super::block_cache::{get_block_cache, BLOCK_SIZE};
-use super::inode::{INODES_PER_BLOCK};
+use super::inode::{INODES_PER_BLOCK, DiskINode, INodeType::Directory, INODE_SIZE};
 use super::vfs::INode;
 use alloc::sync::Arc;
 use spin::Mutex;
@@ -27,7 +27,7 @@ impl FileSystem {
         let data_blocks = data_bitmap_blocks * (BLOCK_BITS as u32);
 
         // 清空缓存
-        for i in 0..total_blocks {
+        for i in 0..(total_blocks-1) {
             get_block_cache(i as usize, Arc::clone(&block_dev))
             .lock()
             .modify(0, |cache: &mut [u8;BLOCK_SIZE as usize]| {
@@ -77,11 +77,11 @@ impl FileSystem {
         });
     }
 
-    // 获取一个inode的全局块号和块内编号
-    pub fn get_inode_block_id(&self, inode_id: u32) -> (u32, u32) {
+    // 获取一个inode的全局块号、块内编号 和 块内偏移
+    pub fn get_inode_block_id(&self, inode_id: u32) -> (u32, u32, u32) {
         let inode_block = self.inode_area_start + inode_id / INODES_PER_BLOCK;
         let inner_inode_id = inode_id % INODES_PER_BLOCK;
-        return (inode_block, inner_inode_id);
+        return (inode_block, inner_inode_id, inner_inode_id * INODE_SIZE);
     }
 
     // 获取一个数据块的全局块号
@@ -108,10 +108,22 @@ impl FileSystem {
         self.data_bitmap.dealloc(block_id - self.data_area_start, Arc::clone(&self.block_dev));
     }
 
+    // 创建root目录inode
+    pub fn create_root_inode(&mut self) -> u32 {
+        let inode_seq = self.alloc_inode();
+        let (block_id, _, block_off) = self.get_inode_block_id(inode_seq);
+        get_block_cache(block_id as usize, Arc::clone(&self.block_dev))
+        .lock()
+        .modify(block_off as usize, |disk_inode: &mut DiskINode| {
+            disk_inode._type = Directory;
+        });
+        return inode_seq;
+    }
+
     // 根inode节点，inode编号为0
     pub fn root_inode(fs: Arc<Mutex<Self>>) -> INode {
         let fs_locked = fs.lock();
-        let (block_id, inode_offset) = fs_locked.get_inode_block_id(0);
+        let (block_id, _, inode_offset) = fs_locked.get_inode_block_id(0);
         return INode::new(block_id, inode_offset, Arc::clone(&fs), Arc::clone(&fs_locked.block_dev));
     }
 }
