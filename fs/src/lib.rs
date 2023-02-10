@@ -1,9 +1,9 @@
-mod block_device;
-mod block_cache;
-mod block_layout;
-mod bitmap;
-mod inode;
-mod dir;
-mod fs;
-mod vfs;
+pub mod block_device;
+pub mod block_cache;
+pub mod block_layout;
+pub mod bitmap;
+pub mod inode;
+pub mod dir;
+pub mod fs;
+pub mod vfs;
 extern crate alloc;
