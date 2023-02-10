@@ -4,3 +4,5 @@ user_lib/target
 user_lib/Cargo.lock
 fs/target
 fs/Cargo.lock
+fs_test/target
+fs_test/Cargo.lock
