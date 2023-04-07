@@ -1,1 +1,1 @@
-Rusty OS (RISC-V64)
+riscv64 mini kernel written in Rust
